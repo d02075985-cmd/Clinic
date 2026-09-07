@@ -4,6 +4,29 @@ import { BackupController } from './backup.controller';
 import { BackupModule } from './backup.module';
 import { AuditService } from '../audit/audit.service';
 import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { EventEmitter } from 'events';
+import { PassThrough, Readable } from 'stream';
+import { gzipSync } from 'zlib';
+import { mkdtemp, readdir, rm } from 'fs/promises';
+import { tmpdir } from 'os';
+import { spawn } from 'child_process';
+
+jest.mock('child_process', () => {
+  const actual = jest.requireActual('child_process');
+  return {
+    ...actual,
+    spawn: jest.fn(),
+  };
+});
+
+function fakeProcess() {
+  const process = new EventEmitter() as any;
+  process.stdout = new PassThrough();
+  process.stderr = new PassThrough();
+  process.stdin = new PassThrough();
+  process.kill = jest.fn();
+  return process;
+}
 
 describe('BackupModule', () => {
   let module: TestingModule;
@@ -173,6 +196,91 @@ describe('BackupModule', () => {
     beforeEach(() => {
       process.env.POSTGRES_DB = 'clinic_test_db';
       process.env.BACKUP_DIR = '/app/backups';
+    });
+
+    describe('BackupService - Process and stream completion', () => {
+      it('should require pg_dump exit code 0 after all output completes', async () => {
+        const service = new BackupService({ logUserAction: jest.fn() } as any);
+        const pgDump = fakeProcess();
+        const gzip = new PassThrough();
+        const output = new PassThrough();
+        const completion = service['completeBackupProcess'](pgDump, gzip, output, () => '');
+
+        pgDump.stdout.end('dump');
+        await new Promise(resolve => setImmediate(resolve));
+        let settled = false;
+        completion.finally(() => { settled = true; });
+        await new Promise(resolve => setImmediate(resolve));
+        expect(settled).toBe(false);
+
+        pgDump.emit('close', 0);
+        await expect(completion).resolves.toBeUndefined();
+      });
+
+      it.each(['non-zero exit', 'spawn error', 'stdout error', 'gzip error', 'output error'])('should reject backup on %s', async (failure) => {
+        const service = new BackupService({ logUserAction: jest.fn() } as any);
+        const pgDump = fakeProcess();
+        const gzip = new PassThrough();
+        const output = new PassThrough();
+        const completion = service['completeBackupProcess'](pgDump, gzip, output, () => 'stderr');
+
+        if (failure === 'non-zero exit') pgDump.emit('close', 1);
+        if (failure === 'spawn error') pgDump.emit('error', new Error('spawn failed'));
+        if (failure === 'stdout error') pgDump.stdout.destroy(new Error('stdout failed'));
+        if (failure === 'gzip error') gzip.destroy(new Error('gzip failed'));
+        if (failure === 'output error') output.destroy(new Error('output failed'));
+        pgDump.stdout.end();
+        await expect(completion).rejects.toThrow();
+      });
+
+      it('should reject and clean a failed temporary backup artifact', async () => {
+        const directory = await mkdtemp(`${tmpdir()}/clinic-backup-`);
+        const previousBackupDir = process.env.BACKUP_DIR;
+        process.env.BACKUP_DIR = directory;
+        process.env.POSTGRES_DB = 'clinic_test_db';
+        const service = new BackupService({ logUserAction: jest.fn() } as any);
+        const pgDump = fakeProcess();
+        (spawn as jest.Mock).mockReturnValueOnce(pgDump);
+        jest.spyOn(service as any, 'completeBackupProcess').mockRejectedValue(new Error('pipeline failed'));
+
+        const operation = service.runBackup('manual');
+
+        await expect(operation).rejects.toThrow(InternalServerErrorException);
+        const files = await readdir(directory);
+        expect(files).toEqual([]);
+        await rm(directory, { recursive: true, force: true });
+        if (previousBackupDir === undefined) delete process.env.BACKUP_DIR;
+        else process.env.BACKUP_DIR = previousBackupDir;
+      });
+
+      it('should restore successfully only after gunzip, stdin, and psql complete', async () => {
+        const service = new BackupService({ logUserAction: jest.fn() } as any);
+        const psql = fakeProcess();
+        const input = Readable.from(gzipSync(Buffer.from('SELECT 1;')));
+        const gunzip = new (require('zlib').Gunzip)();
+        const completion = service['completeRestoreProcess'](psql, input, gunzip, () => '', () => '');
+
+        psql.stdin.on('data', () => undefined);
+        setImmediate(() => psql.emit('close', 0));
+        await expect(completion).resolves.toBeUndefined();
+      });
+
+      it.each(['non-zero exit', 'spawn error', 'input read error', 'gunzip error', 'stdin error', 'truncated input'])('should reject restore on %s', async (failure) => {
+        const service = new BackupService({ logUserAction: jest.fn() } as any);
+        const psql = fakeProcess();
+        const input = new PassThrough();
+        const gunzip = new (require('zlib').Gunzip)();
+        const completion = service['completeRestoreProcess'](psql, input, gunzip, () => 'stderr', () => 'stdout');
+
+        if (failure === 'non-zero exit') psql.emit('close', 1);
+        if (failure === 'spawn error') psql.emit('error', new Error('spawn failed'));
+        if (failure === 'input read error') input.destroy(new Error('input failed'));
+        if (failure === 'gunzip error') input.write(Buffer.from('not gzip'));
+        if (failure === 'stdin error') psql.stdin.destroy(new Error('stdin failed'));
+        if (failure === 'truncated input') input.write(gzipSync(Buffer.from('partial')).subarray(0, 5));
+        input.end();
+        await expect(completion).rejects.toThrow();
+      });
     });
 
     it('should serialize backup operations', async () => {

@@ -1,10 +1,12 @@
 import { Injectable, Logger, BadRequestException, InternalServerErrorException, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { spawn, spawnSync } from 'child_process';
+import { ChildProcessWithoutNullStreams, spawn, spawnSync } from 'child_process';
 import { createGzip, createGunzip } from 'zlib';
 import { createReadStream, createWriteStream } from 'fs';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { pipeline } from 'stream/promises';
+import { Readable, Transform, Writable } from 'stream';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { AuditService } from '../audit/audit.service';
 
@@ -126,6 +128,60 @@ export class BackupService implements OnModuleInit {
     await fs.writeFile(this.manifestPath, JSON.stringify(entries, null, 2));
   }
 
+  private waitForProcessExit(process: ChildProcessWithoutNullStreams): Promise<number> {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const rejectOnce = (error: Error) => {
+        if (settled) return;
+        settled = true;
+        reject(error);
+      };
+      const resolveOnce = (code: number | null) => {
+        if (settled) return;
+        settled = true;
+        resolve(code ?? -1);
+      };
+
+      process.once('error', rejectOnce);
+      process.once('close', resolveOnce);
+    });
+  }
+
+  private async completeBackupProcess(
+    pgDump: ChildProcessWithoutNullStreams,
+    gzip: Transform,
+    out: Writable,
+    stderr: () => string,
+  ) {
+    const results = await Promise.all([
+      pipeline(pgDump.stdout, gzip, out),
+      this.waitForProcessExit(pgDump),
+    ]);
+    const exitCode = results[1];
+
+    if (exitCode !== 0) {
+      throw new Error(`pg_dump exited with code ${exitCode}: ${stderr()}`);
+    }
+  }
+
+  private async completeRestoreProcess(
+    psql: ChildProcessWithoutNullStreams,
+    input: Readable,
+    gunzip: Transform,
+    stderr: () => string,
+    stdout: () => string,
+  ) {
+    const results = await Promise.all([
+      pipeline(input, gunzip, psql.stdin),
+      this.waitForProcessExit(psql),
+    ]);
+    const exitCode = results[1];
+
+    if (exitCode !== 0) {
+      throw new Error(`psql exited with code ${exitCode}. stderr: ${stderr()}, stdout: ${stdout()}`);
+    }
+  }
+
   // Runs every day at 3:00 AM server time. This is a real cron registration
   // via @nestjs/schedule — it will actually fire in production, not a
   // decorative comment.
@@ -152,6 +208,7 @@ export class BackupService implements OnModuleInit {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const filename = `clinic_backup_${timestamp}.sql.gz`;
       const filepath = path.join(this.backupDir, filename);
+      const temporaryFilepath = `${filepath}.tmp`;
 
       // --clean --if-exists: the dump includes DROP statements before each
       // CREATE, so restoring it cleanly replaces existing objects rather than
@@ -163,24 +220,32 @@ export class BackupService implements OnModuleInit {
       );
 
       const gzip = createGzip();
-      const out = createWriteStream(filepath);
+      const out = createWriteStream(temporaryFilepath);
 
       let stderr = '';
       pgDump.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
 
-      await new Promise<void>((resolve, reject) => {
-        pgDump.stdout.pipe(gzip).pipe(out);
-        pgDump.on('error', reject);
-        out.on('error', reject);
-        out.on('finish', resolve);
-        pgDump.on('close', (code) => {
-          if (code !== 0) reject(new Error(`pg_dump exited with code ${code}: ${stderr}`));
+      try {
+        await this.completeBackupProcess(pgDump, gzip, out, () => stderr);
+      } catch (err) {
+        // Clean up a partial temporary file rather than publishing a corrupt backup.
+        pgDump.kill();
+        pgDump.stdout.destroy();
+        gzip.destroy();
+        const outputClosed = new Promise<void>((resolve) => {
+          if ((out as Writable & { closed?: boolean }).closed) {
+            resolve();
+          } else {
+            out.once('close', () => resolve());
+          }
         });
-      }).catch(async (err) => {
-        // Clean up a partial file rather than leaving a corrupt backup behind.
-        await fs.unlink(filepath).catch(() => undefined);
-        throw new InternalServerErrorException(`Backup failed: ${err.message}`);
-      });
+        out.destroy();
+        await outputClosed;
+        await fs.unlink(temporaryFilepath).catch(() => undefined);
+        throw new InternalServerErrorException(`Backup failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+
+      await fs.rename(temporaryFilepath, filepath);
 
       const stat = await fs.stat(filepath);
       let uploadedToRemote = false;
@@ -313,23 +378,17 @@ export class BackupService implements OnModuleInit {
       psql.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
       psql.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
 
-      await new Promise<void>((resolve, reject) => {
+      try {
         const gunzip = createGunzip();
         const input = createReadStream(filepath);
-        input.pipe(gunzip).pipe(psql.stdin);
-        psql.on('error', reject);
-        psql.on('close', (code) => {
-          if (code === 0) {
-            resolve();
-          } else {
-            reject(new Error(`psql exited with code ${code}. stderr: ${stderr}, stdout: ${stdout}`));
-          }
-        });
-      }).catch((err) => {
+        await this.completeRestoreProcess(psql, input, gunzip, () => stderr, () => stdout);
+      } catch (err) {
         // Restore failed - pre-restore safety backup remains available
-        this.logger.error(`Restore failed: ${err.message}`);
-        throw new InternalServerErrorException(`Restore failed: ${err.message}`);
-      });
+        psql.kill();
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Restore failed: ${message}`);
+        throw new InternalServerErrorException(`Restore failed: ${message}`);
+      }
 
       await this.auditService.logUserAction(userId, 'RESTORE_EXECUTED', 'System', filename, ipAddress, userAgent);
 
