@@ -6,8 +6,9 @@ import { servicesService } from '../services/services.service';
 import { invoicesService, CreateInvoiceDto } from '../services/invoices.service';
 import { useTranslation } from 'react-i18next';
 import { centsToMoney, formatMoney, moneyToCents, normalizeMoneyInput, roundDivide } from '../utils/money';
-import Breadcrumb from '../components/Breadcrumb';
 import { getReturnTo } from '../utils/listState';
+import PageHeader from '../components/PageHeader';
+import Skeleton from '../components/Skeleton';
 
 interface LineItem {
   serviceId: string;
@@ -165,7 +166,7 @@ export default function InvoiceForm() {
     return (
       <div className="min-h-screen bg-[#F6F7FA]">
         <div className="container mx-auto px-4 py-8">
-          <div className="animate-pulse h-8 bg-gray-200 rounded w-1/3"></div>
+          <div className="ui-card p-6 space-y-3"><Skeleton className="h-8 rounded-lg" /><Skeleton className="h-48 rounded-lg" /></div>
         </div>
       </div>
     );
@@ -174,8 +175,7 @@ export default function InvoiceForm() {
   return (
     <div className="min-h-screen bg-[#F6F7FA]">
       <div className="container mx-auto px-4 py-8 max-w-2xl">
-        <Breadcrumb items={[{ label: t('sidebar.invoices'), href: returnTo }, { label: t('invoices.newInvoice') }]} />
-        <h1 className="text-3xl font-bold text-[#111844] mb-6">{t('invoices.newInvoice')}</h1>
+        <PageHeader title={t('invoices.newInvoice')} breadcrumbs={[{ label: t('sidebar.invoices'), href: returnTo }, { label: t('invoices.newInvoice') }]} />
 
         {visit && (
           <div className="bg-white rounded-lg shadow-md p-4 mb-6">

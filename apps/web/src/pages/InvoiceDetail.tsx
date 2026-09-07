@@ -7,11 +7,12 @@ import { paymentsService, PaymentMethod } from '../services/payments.service';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '../utils/dateFormat';
 import { formatMoney, moneyToCents, normalizeMoneyInput } from '../utils/money';
-import Breadcrumb from '../components/Breadcrumb';
 import { getReturnTo } from '../utils/listState';
 import { preserveListState } from '../utils/listState';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../contexts/ToastContext';
+import PageHeader from '../components/PageHeader';
+import Skeleton from '../components/Skeleton';
 
 export default function InvoiceDetail() {
   const { t, i18n } = useTranslation();
@@ -36,7 +37,7 @@ export default function InvoiceDetail() {
   const [paymentNotes, setPaymentNotes] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
-  const { data: invoice, isLoading: invoiceLoading } = useQuery({
+  const { data: invoice, isLoading: invoiceLoading, error: invoiceError } = useQuery({
     queryKey: ['invoice', id],
     queryFn: () => invoicesService.getInvoice(id!),
     enabled: !!id,
@@ -132,14 +133,18 @@ export default function InvoiceDetail() {
     paymentMutation.mutate();
   };
 
-  if (invoiceLoading || !invoice) {
+  if (invoiceLoading) {
     return (
       <div className="min-h-screen bg-[#F6F7FA]">
         <div className="container mx-auto px-4 py-8">
-          <div className="animate-pulse h-8 bg-gray-200 rounded w-1/3"></div>
+          <div className="ui-card p-6 space-y-3"><Skeleton className="h-8 rounded-lg" /><Skeleton className="h-48 rounded-lg" /></div>
         </div>
       </div>
     );
+  }
+
+  if (invoiceError || !invoice) {
+    return <div className="page-container"><div className="ui-card p-6 text-center text-[#C4362B]" role="alert">{t('invoices.loadError')}</div></div>;
   }
 
   const statusLabels: Record<string, string> = {
@@ -158,13 +163,11 @@ export default function InvoiceDetail() {
   return (
     <div className="min-h-screen bg-[#F6F7FA]">
       <div className="container mx-auto px-4 py-8 max-w-3xl">
-        <button
-          onClick={() => navigate(returnTo)}
-          className="text-[#4B5694] hover:text-[#111844] text-sm mb-4"
-        >
-          ← {t('invoices.backToInvoices')}
-        </button>
-        <Breadcrumb items={[{ label: t('sidebar.invoices'), href: returnTo }, { label: invoice.invoiceNumber }]} />
+        <PageHeader
+          title={invoice.invoiceNumber}
+          breadcrumbs={[{ label: t('sidebar.invoices'), href: returnTo }, { label: invoice.invoiceNumber }]}
+          actions={<button onClick={() => navigate(returnTo)} className="btn-primary px-4 py-2">{t('common.back')}</button>}
+        />
 
         {formError && (
           <div

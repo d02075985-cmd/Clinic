@@ -11,6 +11,9 @@ import { useNavigate } from 'react-router-dom';
 import DateInput from '../components/DateInput';
 import { formatMoney, moneyToCents } from '../utils/money';
 import { useToast } from '../contexts/ToastContext';
+import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
+import Skeleton from '../components/Skeleton';
 
 const COLORS = ['#102F63', '#173B78', '#4B5694', '#8991A6', '#C4362B', '#C98200'];
 
@@ -100,12 +103,11 @@ export default function ReportsPage() {
 
   return (
     <div className="page-container">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-[26px] font-bold text-[#102F63]">{t('sidebar.reports')}</h1>
-          <p className="text-sm text-[#64748B] mt-1">{t('reports.subtitle')}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+      <PageHeader
+        title={t('sidebar.reports')}
+        subtitle={t('reports.subtitle')}
+        breadcrumbs={[{ label: t('sidebar.reports') }]}
+        actions={
           <button
             onClick={() => navigate('/reports/daily-closing')}
             className="h-11 px-4 flex items-center gap-2 rounded-[10px] border border-[#E2E8F0] bg-white text-sm text-[#102F63] hover:bg-[#F6F8FC]"
@@ -113,6 +115,9 @@ export default function ReportsPage() {
             <ClipboardCheck size={16} strokeWidth={1.75} />
             {t('dailyClosing.title')}
           </button>
+        }
+      />
+      <div className="flex flex-wrap items-center gap-2 mb-6">
           <DateInput value={from} onChange={setFrom} className="ui-input w-auto" />
           <span className="text-[#94A3B8] text-sm">{t('reports.to')}</span>
           <DateInput value={to} onChange={setTo} className="ui-input w-auto" />
@@ -132,8 +137,8 @@ export default function ReportsPage() {
             <FileSpreadsheet size={16} strokeWidth={1.75} />
             {exportingExcel ? t('reports.exporting') : t('reports.exportExcel')}
           </button>
-        </div>
       </div>
+      {summary.error && <div className="ui-card p-4 mb-5 text-sm text-[#C4362B]" role="alert">{t('reports.loadError')}</div>}
 
       {/* KPI row */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
@@ -151,7 +156,7 @@ export default function ReportsPage() {
         <div className="ui-card p-5 lg:col-span-2">
           <h2 className="text-[15px] font-bold text-[#102F63] mb-4">{t('reports.revenueAndCollections')}</h2>
           {revenueTimeseries.isLoading ? (
-            <div className="ui-skeleton h-64 rounded-lg" />
+            <Skeleton className="h-64 rounded-lg" />
           ) : revenueTimeseries.data && revenueTimeseries.data.length > 0 ? (
             <ResponsiveContainer width="100%" height={260}>
               <LineChart data={revenueTimeseries.data}>
@@ -165,7 +170,7 @@ export default function ReportsPage() {
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div className="ui-empty-state">{t('reports.noDataInPeriod')}</div>
+            <EmptyState title={t('reports.noDataInPeriod')} />
           )}
         </div>
 
@@ -173,7 +178,7 @@ export default function ReportsPage() {
         <div className="ui-card p-5">
           <h2 className="text-[15px] font-bold text-[#102F63] mb-4">{t('reports.paymentMethods')}</h2>
           {paymentMethods.isLoading ? (
-            <div className="ui-skeleton h-64 rounded-lg" />
+            <Skeleton className="h-64 rounded-lg" />
           ) : paymentMethods.data && paymentMethods.data.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={200}>
@@ -197,7 +202,7 @@ export default function ReportsPage() {
               </div>
             </>
           ) : (
-            <div className="ui-empty-state">{t('reports.noPaymentsInPeriod')}</div>
+            <EmptyState title={t('reports.noPaymentsInPeriod')} />
           )}
         </div>
       </div>
@@ -207,7 +212,7 @@ export default function ReportsPage() {
         <div className="ui-card p-5 lg:col-span-2 overflow-x-auto">
           <h2 className="text-[15px] font-bold text-[#102F63] mb-4">{t('reports.topServicesByRevenue')}</h2>
           {serviceUsage.isLoading ? (
-            <div className="ui-skeleton h-40 rounded-lg" />
+            <Skeleton className="h-40 rounded-lg" />
           ) : serviceUsage.data && serviceUsage.data.length > 0 ? (
             <table className="w-full text-sm">
               <thead>
@@ -228,7 +233,7 @@ export default function ReportsPage() {
               </tbody>
             </table>
           ) : (
-            <div className="ui-empty-state">{t('reports.noDataInPeriod')}</div>
+            <EmptyState title={t('reports.noDataInPeriod')} />
           )}
         </div>
 
@@ -236,7 +241,7 @@ export default function ReportsPage() {
         <div className="ui-card p-5">
           <h2 className="text-[15px] font-bold text-[#102F63] mb-4">{t('reports.invoicesByStatus')}</h2>
           {invoiceStatus.isLoading ? (
-            <div className="ui-skeleton h-48 rounded-lg" />
+            <Skeleton className="h-48 rounded-lg" />
           ) : invoiceStatus.data && invoiceStatus.data.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={180}>
@@ -260,7 +265,7 @@ export default function ReportsPage() {
               </div>
             </>
           ) : (
-            <div className="ui-empty-state">{t('reports.noInvoicesInPeriod')}</div>
+            <EmptyState title={t('reports.noInvoicesInPeriod')} />
           )}
         </div>
       </div>
@@ -279,7 +284,7 @@ export default function ReportsPage() {
               ))}
             </div>
           ) : (
-            <div className="ui-empty-state">{t('reports.noVisitsInPeriod')}</div>
+            <EmptyState title={t('reports.noVisitsInPeriod')} />
           )}
         </div>
 
@@ -296,7 +301,7 @@ export default function ReportsPage() {
               ))}
             </div>
           ) : (
-            <div className="ui-empty-state">{t('reports.noAppointmentsInPeriod')}</div>
+            <EmptyState title={t('reports.noAppointmentsInPeriod')} />
           )}
         </div>
 
@@ -316,7 +321,7 @@ export default function ReportsPage() {
               ))}
             </div>
           ) : (
-            <div className="ui-empty-state">{t('reports.noOutstandingCurrently')}</div>
+            <EmptyState title={t('reports.noOutstandingCurrently')} />
           )}
         </div>
       </div>

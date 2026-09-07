@@ -6,8 +6,10 @@ import { visitsService, VisitStatus } from '../services/visits.service';
 import { useTranslation } from 'react-i18next';
 import { formatDate, formatTime } from '../utils/dateFormat';
 import DateInput from '../components/DateInput';
-import Breadcrumb from '../components/Breadcrumb';
 import { preserveListState } from '../utils/listState';
+import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
+import Skeleton from '../components/Skeleton';
 
 function statusBadgeStyle(status: VisitStatus) {
   switch (status) {
@@ -82,17 +84,17 @@ export default function VisitsList() {
 
   return (
     <div className="page-container">
-      <Breadcrumb items={[{ label: t('sidebar.visits') }]} />
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-[26px] font-bold text-[#102F63]">{t('sidebar.visits')}</h1>
-          <p className="text-sm text-[#64748B] mt-1">{t('visits.subtitle')}</p>
-        </div>
-        <button onClick={() => navigate('/visits/new')} className="btn-primary flex items-center gap-2 px-4">
-          <Plus size={18} strokeWidth={2} />
-          {t('visits.registerNew')}
-        </button>
-      </div>
+      <PageHeader
+        title={t('sidebar.visits')}
+        subtitle={t('visits.subtitle')}
+        breadcrumbs={[{ label: t('sidebar.visits') }]}
+        actions={
+          <button onClick={() => navigate('/visits/new')} className="btn-primary flex items-center gap-2 px-4 py-2.5">
+            <Plus size={18} strokeWidth={2} />
+            {t('visits.registerNew')}
+          </button>
+        }
+      />
 
       {counts && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
@@ -148,15 +150,15 @@ export default function VisitsList() {
 
       {isLoading && (
         <div className="ui-card p-6 space-y-3">
-          {[...Array(6)].map((_, i) => <div key={i} className="ui-skeleton h-11 rounded-lg" />)}
+          <Skeleton className="h-11 rounded-lg" count={6} />
         </div>
       )}
 
       {error && <div className="ui-card p-6 text-center text-[#C4362B] text-sm">{t('visits.loadError')}</div>}
 
       {!isLoading && !error && visits.length === 0 && (
-        <div className="ui-card p-16 text-center">
-          <p className="text-[#64748B]">{t('common.noDataAvailable')}</p>
+        <div className="ui-card">
+          <EmptyState title={t('common.noDataAvailable')} description={t('common.emptyDescription')} />
         </div>
       )}
 

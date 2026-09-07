@@ -9,6 +9,9 @@ import { formatDate } from '../utils/dateFormat';
 import { formatMoney } from '../utils/money';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../contexts/ToastContext';
+import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
+import Skeleton from '../components/Skeleton';
 
 export default function ServicesList() {
   const { t, i18n } = useTranslation();
@@ -45,18 +48,17 @@ export default function ServicesList() {
 
   return (
     <div className="page-container">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-[26px] font-bold text-[#102F63]">{t('sidebar.services')}</h1>
-          <p className="text-sm text-[#64748B] mt-1">{t('services.subtitle')}</p>
-        </div>
-        {isAdmin && (
-          <button onClick={() => navigate('/services/new')} className="btn-primary flex items-center gap-2 px-4">
+      <PageHeader
+        title={t('sidebar.services')}
+        subtitle={t('services.subtitle')}
+        breadcrumbs={[{ label: t('sidebar.services') }]}
+        actions={isAdmin && (
+          <button onClick={() => navigate('/services/new')} className="btn-primary flex items-center gap-2 px-4 py-2.5">
             <Plus size={18} strokeWidth={2} />
             {t('services.addNew')}
           </button>
         )}
-      </div>
+      />
 
       <div className="flex flex-wrap items-center gap-3 mb-5">
         <div className="relative flex-1 min-w-[240px] max-w-md">
@@ -86,9 +88,7 @@ export default function ServicesList() {
 
       {isLoading && (
         <div className="ui-card p-6 space-y-3">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="ui-skeleton h-11 rounded-lg" />
-          ))}
+          <Skeleton className="h-11 rounded-lg" count={6} />
         </div>
       )}
 
@@ -97,8 +97,8 @@ export default function ServicesList() {
       )}
 
       {!isLoading && !error && services.length === 0 && (
-        <div className="ui-card p-16 text-center">
-          <p className="text-[#64748B]">{search ? t('common.noSearchResults') : t('common.noDataAvailable')}</p>
+        <div className="ui-card">
+          <EmptyState title={search ? t('common.noSearchResults') : t('common.noDataAvailable')} description={t('common.emptyDescription')} />
         </div>
       )}
 
@@ -112,7 +112,7 @@ export default function ServicesList() {
                 <th>{t('services.price')} ({t('common.currency')})</th>
                 <th>{t('common.status')}</th>
                 <th>{t('services.updatedAt')}</th>
-                {isAdmin && <th>الإجراءات</th>}
+                {isAdmin && <th>{t('common.actions')}</th>}
               </tr>
             </thead>
             <tbody>

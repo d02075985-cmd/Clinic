@@ -6,6 +6,9 @@ import { reportsService } from '../services/reports.service';
 import { formatDateTime } from '../utils/dateFormat';
 import DateInput from '../components/DateInput';
 import { formatMoney } from '../utils/money';
+import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
+import Skeleton from '../components/Skeleton';
 
 const PAYMENT_METHOD_KEYS: Record<string, string> = {
   CASH: 'payments.methodCash',
@@ -35,11 +38,12 @@ export default function DailyClosingPage() {
 
   return (
     <div className="page-container">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6 print:hidden">
-        <div>
-          <h1 className="text-[26px] font-bold text-[#102F63]">{t('dailyClosing.title')}</h1>
-          <p className="text-sm text-[#64748B] mt-1">{t('dailyClosing.subtitle')}</p>
-        </div>
+      <PageHeader
+        title={t('dailyClosing.title')}
+        subtitle={t('dailyClosing.subtitle')}
+        breadcrumbs={[{ label: t('sidebar.reports'), href: '/reports' }, { label: t('dailyClosing.title') }]}
+        className="print:hidden"
+        actions={
         <div className="flex items-center gap-2">
           <div className="relative">
             <Calendar size={16} strokeWidth={1.75} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none" />
@@ -58,7 +62,8 @@ export default function DailyClosingPage() {
             {t('common.print')}
           </button>
         </div>
-      </div>
+        }
+      />
 
       {/* Print-only header */}
       <div className="hidden print:block mb-6 text-center">
@@ -70,7 +75,7 @@ export default function DailyClosingPage() {
 
       {isLoading && (
         <div className="ui-card p-6 space-y-3">
-          {[...Array(4)].map((_, i) => <div key={i} className="ui-skeleton h-16 rounded-lg" />)}
+          <Skeleton className="h-16 rounded-lg" count={4} />
         </div>
       )}
 
@@ -103,7 +108,7 @@ export default function DailyClosingPage() {
             <div className="ui-card p-5">
               <h2 className="text-[15px] font-bold text-[#102F63] mb-4">{t('reports.paymentMethods')}</h2>
               {data.paymentMethods.length === 0 ? (
-                <div className="ui-empty-state">{t('reports.noPaymentsInPeriod')}</div>
+                <EmptyState title={t('reports.noPaymentsInPeriod')} />
               ) : (
                 <div className="space-y-2">
                   {data.paymentMethods.map((m) => (
@@ -142,7 +147,7 @@ export default function DailyClosingPage() {
               <h2 className="text-[15px] font-bold text-[#102F63]">{t('dailyClosing.invoicesToday')}</h2>
             </div>
             {data.invoices.length === 0 ? (
-              <div className="ui-empty-state p-6">{t('common.noDataAvailable')}</div>
+              <EmptyState title={t('common.noDataAvailable')} />
             ) : (
               <table className="ui-table">
                 <thead>
@@ -177,7 +182,7 @@ export default function DailyClosingPage() {
               <h2 className="text-[15px] font-bold text-[#102F63]">{t('dailyClosing.paymentsToday')}</h2>
             </div>
             {data.payments.length === 0 ? (
-              <div className="ui-empty-state p-6">{t('payments.noPayments')}</div>
+              <EmptyState title={t('payments.noPayments')} />
             ) : (
               <table className="ui-table">
                 <thead>

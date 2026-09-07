@@ -47,7 +47,11 @@
     "markAllRead": "Mark all read",
     "noNotifications": "No notifications",
     "breadcrumb": "Breadcrumb",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "pageLoading": "Loading page...",
+    "retry": "Try again",
+    "emptyDescription": "There is nothing to display here yet.",
+    "required": "Required"
   },
   "feedback": {
     "notifications": "Notifications",
@@ -389,7 +393,8 @@
     "exportPdf": "Export PDF",
     "exportExcel": "Export Excel",
     "exporting": "Exporting...",
-    "exportError": "Failed to export report"
+    "exportError": "Failed to export report",
+    "loadError": "Failed to load report data"
   },
   "settings": {
     "subtitle": "Manage system settings, permissions, notifications, backups, and security",

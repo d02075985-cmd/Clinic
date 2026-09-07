@@ -5,8 +5,8 @@ import { visitsService, CreateVisitDto } from '../services/visits.service';
 import { patientsService } from '../services/patients.service';
 import { appointmentsService } from '../services/appointments.service';
 import { useTranslation } from 'react-i18next';
-import Breadcrumb from '../components/Breadcrumb';
 import { getReturnTo } from '../utils/listState';
+import PageHeader from '../components/PageHeader';
 import { useToast } from '../contexts/ToastContext';
 
 export default function VisitForm() {
@@ -119,17 +119,11 @@ export default function VisitForm() {
   return (
     <div className="min-h-screen bg-[#F6F7FA] dir-rtl">
       <div className="container mx-auto px-4 py-8">
-        <Breadcrumb items={[{ label: t('sidebar.visits'), href: returnTo }, { label: t('visits.newVisit') }]} />
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-[#111844]">{t('visits.newVisit')}</h1>
-          <button
-            onClick={handleCancel}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-          >
-            {t('common.cancel')}
-          </button>
-        </div>
+        <PageHeader
+          title={t('visits.newVisit')}
+          breadcrumbs={[{ label: t('sidebar.visits'), href: returnTo }, { label: t('visits.newVisit') }]}
+          actions={<button onClick={handleCancel} className="btn-primary px-4 py-2">{t('common.cancel')}</button>}
+        />
 
         {/* Form */}
         <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl">

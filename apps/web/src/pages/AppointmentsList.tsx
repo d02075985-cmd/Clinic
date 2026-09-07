@@ -4,8 +4,10 @@ import { useQuery } from '@tanstack/react-query';
 import { appointmentsService, Appointment } from '../services/appointments.service';
 import { useTranslation } from 'react-i18next';
 import { formatTime as formatTimeUtil } from '../utils/dateFormat';
-import Breadcrumb from '../components/Breadcrumb';
 import { preserveListState } from '../utils/listState';
+import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
+import Skeleton from '../components/Skeleton';
 
 type ViewType = 'calendar' | 'list';
 
@@ -74,15 +76,10 @@ export default function AppointmentsList() {
     return (
       <div className="min-h-screen bg-[#F6F7FA]">
         <div className="container mx-auto px-4 py-8">
-          <Breadcrumb items={[{ label: t('sidebar.appointments') }]} />
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-            <div className="h-12 bg-gray-200 rounded mb-4"></div>
-            <div className="space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-12 bg-gray-200 rounded"></div>
-              ))}
-            </div>
+          <PageHeader title={t('sidebar.appointments')} breadcrumbs={[{ label: t('sidebar.appointments') }]} />
+          <div className="ui-card p-6 space-y-3">
+            <Skeleton className="h-12 rounded-lg" />
+            <Skeleton className="h-12 rounded-lg" count={5} />
           </div>
         </div>
       </div>
@@ -93,9 +90,7 @@ export default function AppointmentsList() {
     return (
       <div className="min-h-screen bg-[#F6F7FA]">
         <div className="container mx-auto px-4 py-8">
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            {t('appointments.loadError')}
-          </div>
+          <div className="ui-card p-6 text-center text-[#C4362B] text-sm" role="alert">{t('appointments.loadError')}</div>
         </div>
       </div>
     );
@@ -113,17 +108,15 @@ export default function AppointmentsList() {
   return (
     <div className="min-h-screen bg-[#F6F7FA]">
       <div className="container mx-auto px-4 py-8">
-        <Breadcrumb items={[{ label: t('sidebar.appointments') }]} />
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-[#111844]">{t('sidebar.appointments')}</h1>
-          <button
-            onClick={handleNewAppointment}
-            className="px-4 py-2 bg-[#111844] text-white rounded-md hover:bg-[#1a237e] transition-colors"
-          >
-            + {t('appointments.newAppointment')}
-          </button>
-        </div>
+        <PageHeader
+          title={t('sidebar.appointments')}
+          breadcrumbs={[{ label: t('sidebar.appointments') }]}
+          actions={
+            <button onClick={handleNewAppointment} className="btn-primary px-4 py-2.5">
+              + {t('appointments.newAppointment')}
+            </button>
+          }
+        />
 
         {/* Controls */}
         <div className="bg-white rounded-lg shadow-md p-4 mb-6">
@@ -233,9 +226,7 @@ export default function AppointmentsList() {
         {viewType === 'list' && (
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             {appointments.length === 0 ? (
-              <div className="p-12 text-center text-gray-500">
-                {t('appointments.noAppointmentsToday')}
-              </div>
+              <EmptyState title={t('appointments.noAppointmentsToday')} description={t('common.emptyDescription')} />
             ) : (
               <table className="w-full">
                 <thead className="bg-gray-50">

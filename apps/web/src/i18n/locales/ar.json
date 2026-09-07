@@ -47,7 +47,11 @@
     "markAllRead": "تحديد الكل كمقروء",
     "noNotifications": "لا توجد إشعارات",
     "breadcrumb": "مسار التنقل",
-    "confirm": "تأكيد"
+    "confirm": "تأكيد",
+    "pageLoading": "جارٍ تحميل الصفحة...",
+    "retry": "حاول مرة أخرى",
+    "emptyDescription": "لا توجد بيانات لعرضها حالياً.",
+    "required": "مطلوب"
   },
   "feedback": {
     "notifications": "الإشعارات",
@@ -389,7 +393,8 @@
     "exportPdf": "تصدير PDF",
     "exportExcel": "تصدير Excel",
     "exporting": "جارِ التصدير...",
-    "exportError": "فشل تصدير التقرير"
+    "exportError": "فشل تصدير التقرير",
+    "loadError": "فشل تحميل بيانات التقرير"
   },
   "settings": {
     "subtitle": "إدارة إعدادات النظام والصلاحيات والتنبيهات والنسخ الاحتياطي والأمان",

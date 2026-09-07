@@ -5,9 +5,10 @@ import { visitsService, VisitStatus } from '../services/visits.service';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '../utils/dateFormat';
 import { formatMoney } from '../utils/money';
-import Breadcrumb from '../components/Breadcrumb';
 import { getReturnTo } from '../utils/listState';
 import { preserveListState } from '../utils/listState';
+import PageHeader from '../components/PageHeader';
+import Skeleton from '../components/Skeleton';
 
 export default function VisitDetail() {
   const { t, i18n } = useTranslation();
@@ -46,9 +47,7 @@ export default function VisitDetail() {
   if (isLoading) {
     return (
       <div className="page-container">
-        <div className="ui-card p-6 space-y-3">
-          {[...Array(5)].map((_, i) => <div key={i} className="ui-skeleton h-8 rounded-lg" />)}
-        </div>
+        <div className="ui-card p-6 space-y-3"><Skeleton className="h-8 rounded-lg" count={5} /></div>
       </div>
     );
   }
@@ -63,21 +62,17 @@ export default function VisitDetail() {
 
   return (
     <div className="page-container">
-      <Breadcrumb items={[{ label: t('sidebar.visits'), href: returnTo }, { label: t('visits.detailsTitle') }]} />
       <button onClick={() => navigate(returnTo)} className="flex items-center gap-1.5 text-sm text-[#64748B] hover:text-[#102F63] mb-4">
         <ArrowRight size={16} strokeWidth={1.75} />
         {t('visits.backToVisits')}
       </button>
 
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-[22px] font-bold text-[#102F63]">{t('visits.detailsTitle')}</h1>
-          <p className="text-sm text-[#64748B] mt-1">{formatDateTime(visit.visitDate, i18n.language)}</p>
-        </div>
-        <span className="ui-badge" style={{ background: 'rgba(23,59,120,0.1)', color: 'var(--brand-blue)' }}>
-          {STATUS_LABELS[visit.status]}
-        </span>
-      </div>
+      <PageHeader
+        title={t('visits.detailsTitle')}
+        subtitle={formatDateTime(visit.visitDate, i18n.language)}
+        breadcrumbs={[{ label: t('sidebar.visits'), href: returnTo }, { label: t('visits.detailsTitle') }]}
+        actions={<span className="ui-badge" style={{ background: 'rgba(23,59,120,0.1)', color: 'var(--brand-blue)' }}>{STATUS_LABELS[visit.status]}</span>}
+      />
 
       <div className="grid md:grid-cols-2 gap-5 mb-5">
         <div className="ui-card p-5">

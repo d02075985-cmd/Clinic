@@ -5,7 +5,9 @@ import { Search, Eye, Pencil, CalendarPlus, Plus, Filter } from 'lucide-react';
 import { patientsService } from '../services/patients.service';
 import { useTranslation } from 'react-i18next';
 import { formatDate } from '../utils/dateFormat';
-import Breadcrumb from '../components/Breadcrumb';
+import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
+import Skeleton from '../components/Skeleton';
 import { preserveListState } from '../utils/listState';
 
 // Masks all but the first and last digit of a civil ID for display in the
@@ -55,17 +57,17 @@ export default function PatientsList() {
 
   return (
     <div className="page-container">
-      <Breadcrumb items={[{ label: t('sidebar.patients') }]} />
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-[26px] font-bold text-[#102F63]">{t('sidebar.patients')}</h1>
-          <p className="text-sm text-[#64748B] mt-1">{t('patients.subtitle')}</p>
-        </div>
-        <button onClick={() => navigate(preserveListState('/patients/new', location))} className="btn-primary flex items-center gap-2 px-4">
-          <Plus size={18} strokeWidth={2} />
-          {t('patients.addNew')}
-        </button>
-      </div>
+      <PageHeader
+        title={t('sidebar.patients')}
+        subtitle={t('patients.subtitle')}
+        breadcrumbs={[{ label: t('sidebar.patients') }]}
+        actions={
+          <button onClick={() => navigate(preserveListState('/patients/new', location))} className="btn-primary flex items-center gap-2 px-4 py-2.5">
+            <Plus size={18} strokeWidth={2} />
+            {t('patients.addNew')}
+          </button>
+        }
+      />
 
       <div className="flex items-center gap-3 mb-5">
         <div className="relative flex-1 max-w-md">
@@ -110,9 +112,7 @@ export default function PatientsList() {
 
       {isLoading && (
         <div className="ui-card p-6 space-y-3">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="ui-skeleton h-11 rounded-lg" />
-          ))}
+          <Skeleton className="h-11 rounded-lg" count={6} />
         </div>
       )}
 
@@ -121,8 +121,8 @@ export default function PatientsList() {
       )}
 
       {!isLoading && !error && patients.length === 0 && (
-        <div className="ui-card p-16 text-center">
-          <p className="text-[#64748B] mb-4">{search ? t('common.noSearchResults') : t('common.noDataAvailable')}</p>
+        <div className="ui-card">
+          <EmptyState title={search ? t('common.noSearchResults') : t('common.noDataAvailable')} description={t('common.emptyDescription')} />
         </div>
       )}
 

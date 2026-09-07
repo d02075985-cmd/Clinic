@@ -13,6 +13,9 @@ import { getAccessToken } from '../config/auth-token';
 import { useTranslation } from 'react-i18next';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../contexts/ToastContext';
+import PageHeader from '../components/PageHeader';
+import Skeleton from '../components/Skeleton';
+import EmptyState from '../components/EmptyState';
 
 const APP_VERSION = 'v1.0.0';
 
@@ -52,65 +55,59 @@ function formatDateTime(dateString: string): string {
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [activeSection, setActiveSection] = useState<string | null>(null);
 
   return (
     <div className="page-container">
-      <div className="mb-6">
-        <h1 className="text-[26px] font-bold text-[#102F63] flex items-center gap-2">
-          الإعدادات
-        </h1>
-        <p className="text-sm text-[#64748B] mt-1">
-          إدارة إعدادات النظام والصلاحيات والتنبيهات والنسخ الاحتياطي والأمان
-        </p>
-      </div>
+      <PageHeader title={t('sidebar.settings')} subtitle={t('settings.subtitle')} breadcrumbs={[{ label: t('sidebar.settings') }]} />
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <SettingsCard
           icon={UsersRound}
           color="#16803C"
-          title="الصلاحيات والأدوار"
-          description="إدارة المستخدمين وتحديد الأدوار والصلاحيات لكل دور في النظام"
+          title={t('settings.rolesTitle')}
+          description={t('settings.rolesDesc')}
           active={activeSection === 'roles'}
           onClick={() => setActiveSection(activeSection === 'roles' ? null : 'roles')}
         />
         <SettingsCard
           icon={Bell}
           color="#C98200"
-          title="الإشعارات والتنبيهات"
-          description="إدارة إعدادات الإشعارات والتنبيهات داخل النظام"
+          title={t('settings.notificationsTitle')}
+          description={t('settings.notificationsDesc')}
           active={activeSection === 'notifications'}
           onClick={() => setActiveSection(activeSection === 'notifications' ? null : 'notifications')}
         />
         <SettingsCard
           icon={ShieldCheck}
           color="#173B78"
-          title="الأمان"
-          description="إعدادات الأمان وتغيير كلمة المرور"
+          title={t('settings.securityTitle')}
+          description={t('settings.securityDesc')}
           active={activeSection === 'security'}
           onClick={() => setActiveSection(activeSection === 'security' ? null : 'security')}
         />
         <SettingsCard
           icon={DatabaseBackup}
           color="#6B4FBB"
-          title="النسخ الاحتياطي والاستعادة"
-          description="إنشاء نسخ احتياطية للبيانات واستعادة النسخ السابقة عند الحاجة"
+          title={t('settings.backupTitle')}
+          description={t('settings.backupDesc')}
           active={activeSection === 'backup'}
           onClick={() => setActiveSection(activeSection === 'backup' ? null : 'backup')}
         />
         <SettingsCard
           icon={FileClock}
           color="#4B5694"
-          title="سجل التغييرات"
-          description="عرض جميع العمليات والتغييرات التي تمت في النظام"
+          title={t('settings.activityTitle')}
+          description={t('settings.activityDesc')}
           active={activeSection === 'activity'}
           onClick={() => setActiveSection(activeSection === 'activity' ? null : 'activity')}
         />
         <SettingsCard
           icon={Server}
           color="#C4362B"
-          title="معلومات النظام"
-          description="معلومات عن حالة النظام وقاعدة البيانات والخادم"
+          title={t('settings.systemTitle')}
+          description={t('settings.systemDesc')}
           active={activeSection === 'system'}
           onClick={() => setActiveSection(activeSection === 'system' ? null : 'system')}
         />
@@ -203,7 +200,7 @@ function BackupSection() {
       {error && <div className="mb-4 px-3 py-2 bg-red-50 border border-red-100 text-[#C4362B] rounded-lg text-sm">{error}</div>}
 
       {loading ? (
-        <div className="ui-skeleton h-32 rounded-lg mb-5" />
+        <Skeleton className="h-32 rounded-lg mb-5" />
       ) : (
         <div className="grid md:grid-cols-2 gap-4 mb-5">
           <div className="p-4 rounded-xl border border-[#E2E8F0]">
@@ -235,7 +232,7 @@ function BackupSection() {
       </button>
 
       <h3 className="text-sm font-bold text-[#102F63] mb-3">النسخ المتاحة للاستعادة</h3>
-      {backups.length === 0 && !loading && <div className="ui-empty-state">لا توجد نسخ احتياطية بعد</div>}
+      {backups.length === 0 && !loading && <EmptyState title={t('settings.noBackupsYet')} />}
       {backups.length > 0 && (
         <div className="space-y-2">
           {backups.map((b) => (
@@ -298,7 +295,7 @@ function RolesSection({ currentUserId }: { currentUserId?: string }) {
         </button>
       </div>
 
-      {isLoading && <div className="ui-skeleton h-32 rounded-lg" />}
+      {isLoading && <Skeleton className="h-32 rounded-lg" />}
 
       {users && (
         <table className="ui-table">
@@ -527,7 +524,7 @@ function ActivitySection() {
   return (
     <div className="ui-card p-5">
       <h2 className="text-[16px] font-bold text-[#102F63] mb-4">سجل التغييرات</h2>
-      {isLoading && <div className="ui-skeleton h-40 rounded-lg" />}
+      {isLoading && <Skeleton className="h-40 rounded-lg" />}
       {data && data.data.length === 0 && <div className="ui-empty-state">لا توجد عمليات مسجلة بعد</div>}
       {data && data.data.length > 0 && (
         <>

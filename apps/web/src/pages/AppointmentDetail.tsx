@@ -3,9 +3,10 @@ import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appointmentsService, UpdateStatusDto, CancelAppointmentDto } from '../services/appointments.service';
 import { useTranslation } from 'react-i18next';
-import Breadcrumb from '../components/Breadcrumb';
 import { getReturnTo, preserveListState } from '../utils/listState';
 import { useToast } from '../contexts/ToastContext';
+import PageHeader from '../components/PageHeader';
+import Skeleton from '../components/Skeleton';
 
 export default function AppointmentDetail() {
   const { id } = useParams<{ id: string }>();
@@ -101,10 +102,7 @@ export default function AppointmentDetail() {
     return (
       <div className="min-h-screen bg-[#F6F7FA] dir-rtl">
         <div className="container mx-auto px-4 py-8">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-            <div className="h-64 bg-gray-200 rounded"></div>
-          </div>
+          <div className="ui-card p-6 space-y-3"><Skeleton className="h-8 rounded-lg" /><Skeleton className="h-64 rounded-lg" /></div>
         </div>
       </div>
     );
@@ -114,9 +112,7 @@ export default function AppointmentDetail() {
     return (
       <div className="min-h-screen bg-[#F6F7FA] dir-rtl">
         <div className="container mx-auto px-4 py-8">
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            فشل في تحميل بيانات الموعد
-          </div>
+          <div className="ui-card p-6 text-center text-[#C4362B] text-sm" role="alert">{t('appointments.loadError')}</div>
         </div>
       </div>
     );
@@ -125,18 +121,11 @@ export default function AppointmentDetail() {
   return (
     <div className="min-h-screen bg-[#F6F7FA] dir-rtl">
       <div className="container mx-auto px-4 py-8">
-        <Breadcrumb items={[{ label: t('sidebar.appointments'), href: returnTo }, { label: t('appointments.detailsTitle') }]} />
-
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-[#111844]">تفاصيل الموعد</h1>
-          <button
-            onClick={() => navigate(returnTo)}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-          >
-            عودة
-          </button>
-        </div>
+        <PageHeader
+          title={t('appointments.detailsTitle')}
+          breadcrumbs={[{ label: t('sidebar.appointments'), href: returnTo }, { label: t('appointments.detailsTitle') }]}
+          actions={<button onClick={() => navigate(returnTo)} className="btn-primary px-4 py-2">{t('common.back')}</button>}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Appointment Details */}

@@ -6,9 +6,9 @@ import { patientsService } from '../services/patients.service';
 import { useTranslation } from 'react-i18next';
 import DateInput from '../components/DateInput';
 import TimeInput from '../components/TimeInput';
-import Breadcrumb from '../components/Breadcrumb';
 import { getReturnTo } from '../utils/listState';
 import { useToast } from '../contexts/ToastContext';
+import PageHeader from '../components/PageHeader';
 
 export default function AppointmentForm() {
   const { t } = useTranslation();
@@ -93,17 +93,11 @@ export default function AppointmentForm() {
   return (
     <div className="min-h-screen bg-[#F6F7FA]">
       <div className="container mx-auto px-4 py-8">
-        <Breadcrumb items={[{ label: t('sidebar.appointments'), href: returnTo }, { label: t('appointments.newAppointment') }]} />
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-[#111844]">{t('appointments.newAppointment')}</h1>
-          <button
-            onClick={handleCancel}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-          >
-            {t('common.cancel')}
-          </button>
-        </div>
+        <PageHeader
+          title={t('appointments.newAppointment')}
+          breadcrumbs={[{ label: t('sidebar.appointments'), href: returnTo }, { label: t('appointments.newAppointment') }]}
+          actions={<button onClick={handleCancel} className="btn-primary px-4 py-2">{t('common.cancel')}</button>}
+        />
 
         {/* Form */}
         <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl">

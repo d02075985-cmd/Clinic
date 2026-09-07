@@ -4,9 +4,10 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { servicesService, CreateServiceDto, UpdateServiceDto } from '../services/services.service';
 import { useTranslation } from 'react-i18next';
 import { moneyToCents, normalizeMoneyInput } from '../utils/money';
-import Breadcrumb from '../components/Breadcrumb';
 import { getReturnTo } from '../utils/listState';
 import { useToast } from '../contexts/ToastContext';
+import PageHeader from '../components/PageHeader';
+import Skeleton from '../components/Skeleton';
 
 export default function ServiceForm() {
   const { t } = useTranslation();
@@ -134,10 +135,7 @@ export default function ServiceForm() {
     return (
       <div className="min-h-screen bg-[#F6F7FA]">
         <div className="container mx-auto px-4 py-8">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-            <div className="h-64 bg-gray-200 rounded"></div>
-          </div>
+          <div className="ui-card p-6 space-y-3"><Skeleton className="h-8 rounded-lg" /><Skeleton className="h-64 rounded-lg" /></div>
         </div>
       </div>
     );
@@ -146,19 +144,11 @@ export default function ServiceForm() {
   return (
     <div className="min-h-screen bg-[#F6F7FA]">
       <div className="container mx-auto px-4 py-8">
-        <Breadcrumb items={[{ label: t('sidebar.services'), href: returnTo }, { label: isEdit ? t('services.editService') : t('services.newService') }]} />
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-[#111844]">
-            {isEdit ? t('services.editService') : t('services.newService')}
-          </h1>
-          <button
-            onClick={handleCancel}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-          >
-            {t('common.cancel')}
-          </button>
-        </div>
+        <PageHeader
+          title={isEdit ? t('services.editService') : t('services.newService')}
+          breadcrumbs={[{ label: t('sidebar.services'), href: returnTo }, { label: isEdit ? t('services.editService') : t('services.newService') }]}
+          actions={<button onClick={handleCancel} className="btn-primary px-4 py-2">{t('common.cancel')}</button>}
+        />
 
         {/* Form */}
         <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl">

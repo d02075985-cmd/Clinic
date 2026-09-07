@@ -8,8 +8,10 @@ import { appointmentsService } from '../services/appointments.service';
 import { paymentsService, Payment } from '../services/payments.service';
 import { useTranslation } from 'react-i18next';
 import { formatDate, formatDateTime } from '../utils/dateFormat';
-import Breadcrumb from '../components/Breadcrumb';
 import { getReturnTo, preserveListState } from '../utils/listState';
+import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
+import Skeleton from '../components/Skeleton';
 
 type TabType = 'overview' | 'visits' | 'invoices' | 'payments' | 'appointments';
 
@@ -57,12 +59,9 @@ export default function PatientProfile() {
     return (
       <div className="min-h-screen bg-[#F6F7FA]">
         <div className="container mx-auto px-4 py-8">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="h-64 bg-gray-200 rounded"></div>
-              <div className="col-span-2 h-64 bg-gray-200 rounded"></div>
-            </div>
+          <div className="ui-card p-6 space-y-3">
+            <Skeleton className="h-8 rounded-lg" />
+            <Skeleton className="h-64 rounded-lg" count={2} />
           </div>
         </div>
       </div>
@@ -73,7 +72,7 @@ export default function PatientProfile() {
     return (
       <div className="min-h-screen bg-[#F6F7FA]">
         <div className="container mx-auto px-4 py-8">
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="ui-card p-6 text-center text-[#C4362B] text-sm" role="alert">
             {t('patients.detailLoadError')}
           </div>
         </div>
@@ -92,7 +91,11 @@ export default function PatientProfile() {
   return (
     <div className="min-h-screen bg-[#F6F7FA]">
       <div className="container mx-auto px-4 py-8">
-        <Breadcrumb items={[{ label: t('sidebar.patients'), href: patientsListReturnTo }, { label: patient.fullNameAr }]} />
+        <PageHeader
+          title={patient.fullNameAr}
+          subtitle={patient.civilId}
+          breadcrumbs={[{ label: t('sidebar.patients'), href: patientsListReturnTo }, { label: patient.fullNameAr }]}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Profile Panel (Right side in RTL) */}
@@ -234,9 +237,7 @@ export default function PatientProfile() {
                       </button>
                     </div>
                     {visits.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        {t('patients.noVisitsRecorded')}
-                      </div>
+                      <EmptyState title={t('patients.noVisitsRecorded')} />
                     ) : (
                       <table className="w-full">
                         <thead className="bg-gray-50">
@@ -280,7 +281,7 @@ export default function PatientProfile() {
                 {activeTab === 'invoices' && (
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('patients.invoicesHistory')}</h3>
-                    {(invoicesData?.data || []).length === 0 ? <div className="text-center py-8 text-gray-500">{t('patients.noInvoicesRecorded')}</div> : (
+                    {(invoicesData?.data || []).length === 0 ? <EmptyState title={t('patients.noInvoicesRecorded')} /> : (
                       <div className="space-y-2">{invoicesData?.data.map((invoice) => (
                     <button key={invoice.id} onClick={() => navigate(preserveListState(`/invoices/${invoice.id}`, { pathname: `/patients/${patient.id}`, search: '' }))} className="w-full flex justify-between p-3 bg-gray-50 rounded hover:bg-gray-100 text-right">
                       <span className="font-medium">{invoice.invoiceNumber}</span><span>{formatDate(invoice.createdAt, i18n.language)} · {invoice.total} {t('common.currency')}</span>
@@ -293,7 +294,7 @@ export default function PatientProfile() {
                 {activeTab === 'payments' && (
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('patients.paymentsHistory')}</h3>
-                    {payments.length === 0 ? <div className="text-center py-8 text-gray-500">{t('patients.noPaymentsRecorded')}</div> : (
+                    {payments.length === 0 ? <EmptyState title={t('patients.noPaymentsRecorded')} /> : (
                       <div className="space-y-2">{payments.map((payment) => (
                         <button key={payment.id} onClick={() => navigate(preserveListState(`/invoices/${payment.invoiceId}`, { pathname: `/patients/${patient.id}`, search: '' }))} className="w-full flex justify-between p-3 bg-gray-50 rounded hover:bg-gray-100 text-right">
                           <span>{formatDate(payment.paymentDate, i18n.language)}</span><span>{payment.amount} {t('common.currency')}</span>
@@ -306,7 +307,7 @@ export default function PatientProfile() {
                 {activeTab === 'appointments' && (
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('patients.appointmentsHistory')}</h3>
-                    {(appointmentsData?.data || []).length === 0 ? <div className="text-center py-8 text-gray-500">{t('patients.noAppointmentsRecorded')}</div> : (
+                    {(appointmentsData?.data || []).length === 0 ? <EmptyState title={t('patients.noAppointmentsRecorded')} /> : (
                       <div className="space-y-2">{appointmentsData?.data.map((appointment) => (
                         <button key={appointment.id} onClick={() => navigate(preserveListState(`/appointments/${appointment.id}`, { pathname: `/patients/${patient.id}`, search: '' }))} className="w-full flex justify-between p-3 bg-gray-50 rounded hover:bg-gray-100 text-right">
                           <span>{formatDateTime(appointment.scheduledAt, i18n.language)}</span><span>{appointment.status}</span>
