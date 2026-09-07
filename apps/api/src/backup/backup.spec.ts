@@ -5,9 +5,9 @@ import { BackupModule } from './backup.module';
 import { AuditService } from '../audit/audit.service';
 import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { EventEmitter } from 'events';
-import { PassThrough, Readable } from 'stream';
+import { PassThrough, Readable, Writable } from 'stream';
 import { gzipSync } from 'zlib';
-import { mkdtemp, readdir, rm } from 'fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { spawn } from 'child_process';
 
@@ -199,6 +199,32 @@ describe('BackupModule', () => {
     });
 
     describe('BackupService - Process and stream completion', () => {
+      it('should calculate and verify the SHA-256 checksum of a backup artifact', async () => {
+        const directory = await mkdtemp(`${tmpdir()}/clinic-backup-`);
+        const filepath = `${directory}/clinic_backup_2024.sql.gz`;
+        const content = gzipSync(Buffer.from('SELECT 1;'));
+        await writeFile(filepath, content);
+        const service = new BackupService({ logUserAction: jest.fn() } as any);
+
+        await expect(service['calculateSha256'](filepath)).resolves.toBe(
+          require('crypto').createHash('sha256').update(content).digest('hex'),
+        );
+        await expect(service['verifyGzip'](filepath)).resolves.toBeUndefined();
+
+        await rm(directory, { recursive: true, force: true });
+      });
+
+      it.each(['corrupt gzip', 'truncated gzip'])('should reject %s artifacts', async (failure) => {
+        const directory = await mkdtemp(`${tmpdir()}/clinic-backup-`);
+        const filepath = `${directory}/clinic_backup_2024.sql.gz`;
+        const content = gzipSync(Buffer.from('SELECT 1;'));
+        await writeFile(filepath, failure === 'corrupt gzip' ? Buffer.from('not gzip') : content.subarray(0, 5));
+        const service = new BackupService({ logUserAction: jest.fn() } as any);
+
+        await expect(service['verifyGzip'](filepath)).rejects.toThrow();
+        await rm(directory, { recursive: true, force: true });
+      });
+
       it('should require pg_dump exit code 0 after all output completes', async () => {
         const service = new BackupService({ logUserAction: jest.fn() } as any);
         const pgDump = fakeProcess();
@@ -280,6 +306,220 @@ describe('BackupModule', () => {
         if (failure === 'truncated input') input.write(gzipSync(Buffer.from('partial')).subarray(0, 5));
         input.end();
         await expect(completion).rejects.toThrow();
+      });
+
+      it('should publish only the validated final artifact and exclude temporary files', async () => {
+        const directory = await mkdtemp(`${tmpdir()}/clinic-backup-`);
+        process.env.BACKUP_DIR = directory;
+        process.env.POSTGRES_DB = 'clinic_test_db';
+        const service = new BackupService({ logUserAction: jest.fn() } as any);
+        const pgDump = fakeProcess();
+        (spawn as jest.Mock).mockReturnValueOnce(pgDump);
+        jest.spyOn(service as any, 'completeBackupProcess').mockImplementation(async (_process, _gzip, output: Writable) => {
+          output.write(gzipSync(Buffer.from('SELECT 1;')));
+          await new Promise<void>((resolve, reject) => {
+            output.once('finish', resolve);
+            output.once('error', reject);
+            output.end();
+          });
+        });
+
+        const result = await service.runBackup('manual');
+        const files = await readdir(directory);
+        expect(result.filename.endsWith('.sql.gz')).toBe(true);
+        expect(files).toContain(result.filename);
+        expect(files.some(file => file.endsWith('.tmp'))).toBe(false);
+        expect((await service.listBackups()).map(entry => entry.filename)).toEqual([result.filename]);
+
+        await rm(directory, { recursive: true, force: true });
+      });
+
+      it('should clean up a temporary artifact when publication validation fails', async () => {
+        const directory = await mkdtemp(`${tmpdir()}/clinic-backup-`);
+        process.env.BACKUP_DIR = directory;
+        process.env.POSTGRES_DB = 'clinic_test_db';
+        const service = new BackupService({ logUserAction: jest.fn() } as any);
+        const pgDump = fakeProcess();
+        (spawn as jest.Mock).mockReturnValueOnce(pgDump);
+        jest.spyOn(service as any, 'completeBackupProcess').mockImplementation(async (_process, _gzip, output: Writable) => {
+          output.write(gzipSync(Buffer.from('SELECT 1;')));
+          await new Promise<void>((resolve, reject) => {
+            output.once('finish', resolve);
+            output.once('error', reject);
+            output.end();
+          });
+        });
+        jest.spyOn(service as any, 'verifyGzip').mockRejectedValue(new Error('corrupt gzip'));
+
+        await expect(service.runBackup('manual')).rejects.toThrow(InternalServerErrorException);
+        expect(await readdir(directory)).toEqual([]);
+        await rm(directory, { recursive: true, force: true });
+      });
+
+      it('should reject restore when the manifest entry or artifact integrity is invalid', async () => {
+        const directory = await mkdtemp(`${tmpdir()}/clinic-backup-`);
+        process.env.BACKUP_DIR = directory;
+        process.env.POSTGRES_DB = 'clinic_test_db';
+        const service = new BackupService({ logUserAction: jest.fn() } as any);
+        const content = gzipSync(Buffer.from('SELECT 1;'));
+        const filename = 'clinic_backup_2024.sql.gz';
+        await writeFile(`${directory}/${filename}`, content);
+        const manifest = {
+          version: 2 as const,
+          database: 'clinic_test_db',
+          entries: [{
+            filename,
+            sizeBytes: content.length + 1,
+            sha256: '0'.repeat(64),
+            createdAt: new Date().toISOString(),
+            triggeredBy: 'manual' as const,
+            uploadedToRemote: false,
+            validation: { gzipVerified: true, databaseVerified: false, verifiedAt: new Date().toISOString() },
+            protected: false,
+          }],
+        };
+        await service['writeManifest'](manifest);
+
+        await expect(service.restoreBackup(filename, 'user-id')).rejects.toThrow(BadRequestException);
+        await rm(directory, { recursive: true, force: true });
+      });
+
+      it('should block restore when the checksum does not match', async () => {
+        const directory = await mkdtemp(`${tmpdir()}/clinic-backup-`);
+        process.env.BACKUP_DIR = directory;
+        process.env.POSTGRES_DB = 'clinic_test_db';
+        const service = new BackupService({ logUserAction: jest.fn() } as any);
+        const filename = 'clinic_backup_2024.sql.gz';
+        const content = gzipSync(Buffer.from('SELECT 1;'));
+        await writeFile(`${directory}/${filename}`, content);
+        await service['writeManifest']({
+          version: 2,
+          database: 'clinic_test_db',
+          entries: [{
+            filename,
+            sizeBytes: content.length,
+            sha256: '0'.repeat(64),
+            createdAt: new Date().toISOString(),
+            triggeredBy: 'manual',
+            uploadedToRemote: false,
+            validation: { gzipVerified: true, databaseVerified: false, verifiedAt: new Date().toISOString() },
+            protected: false,
+          }],
+        });
+
+        (spawn as jest.Mock).mockClear();
+        await expect(service.restoreBackup(filename, 'user-id')).rejects.toThrow('checksum');
+        expect(spawn).not.toHaveBeenCalled();
+        await rm(directory, { recursive: true, force: true });
+      });
+
+      it('should block restore when the artifact size does not match', async () => {
+        const directory = await mkdtemp(`${tmpdir()}/clinic-backup-`);
+        process.env.BACKUP_DIR = directory;
+        process.env.POSTGRES_DB = 'clinic_test_db';
+        const service = new BackupService({ logUserAction: jest.fn() } as any);
+        const filename = 'clinic_backup_2024.sql.gz';
+        const content = gzipSync(Buffer.from('SELECT 1;'));
+        await writeFile(`${directory}/${filename}`, content);
+        await service['writeManifest']({
+          version: 2,
+          database: 'clinic_test_db',
+          entries: [{
+            filename,
+            sizeBytes: content.length + 1,
+            sha256: require('crypto').createHash('sha256').update(content).digest('hex'),
+            createdAt: new Date().toISOString(),
+            triggeredBy: 'manual',
+            uploadedToRemote: false,
+            validation: { gzipVerified: true, databaseVerified: false, verifiedAt: new Date().toISOString() },
+            protected: false,
+          }],
+        });
+
+        (spawn as jest.Mock).mockClear();
+        await expect(service.restoreBackup(filename, 'user-id')).rejects.toThrow('size');
+        expect(spawn).not.toHaveBeenCalled();
+        await rm(directory, { recursive: true, force: true });
+      });
+
+      it('should reject restore when the manifest artifact is missing', async () => {
+        const directory = await mkdtemp(`${tmpdir()}/clinic-backup-`);
+        process.env.BACKUP_DIR = directory;
+        process.env.POSTGRES_DB = 'clinic_test_db';
+        const service = new BackupService({ logUserAction: jest.fn() } as any);
+        await service['writeManifest']({
+          version: 2,
+          database: 'clinic_test_db',
+          entries: [{
+            filename: 'clinic_backup_2024.sql.gz',
+            sizeBytes: 10,
+            sha256: '0'.repeat(64),
+            createdAt: new Date().toISOString(),
+            triggeredBy: 'manual',
+            uploadedToRemote: false,
+            validation: { gzipVerified: true, databaseVerified: false, verifiedAt: new Date().toISOString() },
+            protected: false,
+          }],
+        });
+
+        await expect(service.restoreBackup('clinic_backup_2024.sql.gz', 'user-id')).rejects.toThrow('not found');
+        await rm(directory, { recursive: true, force: true });
+      });
+    });
+
+    describe('BackupService - Manifest integrity', () => {
+      beforeEach(() => {
+        process.env.POSTGRES_DB = 'clinic_test_db';
+      });
+
+      it('should fail closed for malformed or unsupported manifests', async () => {
+        const directory = await mkdtemp(`${tmpdir()}/clinic-backup-`);
+        process.env.BACKUP_DIR = directory;
+        const service = new BackupService({ logUserAction: jest.fn() } as any);
+
+        await writeFile(`${directory}/manifest.json`, '{not-json');
+        await expect(service['readManifest']()).rejects.toThrow('Backup manifest is corrupt');
+        await writeFile(`${directory}/manifest.json`, JSON.stringify([]));
+        await expect(service['readManifest']()).rejects.toThrow('manifest version or shape is invalid');
+        await rm(directory, { recursive: true, force: true });
+      });
+
+      it('should atomically write a versioned manifest without exposing temporary files', async () => {
+        const directory = await mkdtemp(`${tmpdir()}/clinic-backup-`);
+        process.env.BACKUP_DIR = directory;
+        const service = new BackupService({ logUserAction: jest.fn() } as any);
+        const manifest = { version: 2 as const, database: 'clinic_test_db', entries: [] };
+
+        await service['writeManifest'](manifest);
+        expect(JSON.parse(await readFile(`${directory}/manifest.json`, 'utf8'))).toEqual(manifest);
+        expect((await readdir(directory)).filter(file => file.endsWith('.tmp'))).toEqual([]);
+        await rm(directory, { recursive: true, force: true });
+      });
+
+      it('should preserve the previous manifest when manifest serialization fails', async () => {
+        const directory = await mkdtemp(`${tmpdir()}/clinic-backup-`);
+        process.env.BACKUP_DIR = directory;
+        const service = new BackupService({ logUserAction: jest.fn() } as any);
+        const previousManifest = { version: 2 as const, database: 'clinic_test_db', entries: [] };
+        await service['writeManifest'](previousManifest);
+        const previousContents = await readFile(`${directory}/manifest.json`, 'utf8');
+        const invalidManifest = { version: 2 as const, database: 'clinic_test_db', entries: [] } as any;
+        invalidManifest.self = invalidManifest;
+
+        await expect(service['writeManifest'](invalidManifest)).rejects.toThrow();
+        expect(await readFile(`${directory}/manifest.json`, 'utf8')).toBe(previousContents);
+        expect((await readdir(directory)).filter(file => file.endsWith('.tmp'))).toEqual([]);
+        await rm(directory, { recursive: true, force: true });
+      });
+
+      it('should fail closed when the manifest cannot be read', async () => {
+        const directory = await mkdtemp(`${tmpdir()}/clinic-backup-`);
+        process.env.BACKUP_DIR = directory;
+        const service = new BackupService({ logUserAction: jest.fn() } as any);
+        await mkdir(`${directory}/manifest.json`);
+
+        await expect(service['readManifest']()).rejects.toThrow('unreadable or invalid');
+        await rm(directory, { recursive: true, force: true });
       });
     });
 

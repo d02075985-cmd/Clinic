@@ -7,15 +7,29 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { pipeline } from 'stream/promises';
 import { Readable, Transform, Writable } from 'stream';
+import { createHash } from 'crypto';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { AuditService } from '../audit/audit.service';
 
 export interface BackupManifestEntry {
   filename: string;
   sizeBytes: number;
+  sha256: string;
   createdAt: string;
   triggeredBy: 'manual' | 'scheduled' | 'pre-restore-safety';
   uploadedToRemote: boolean;
+  validation: {
+    gzipVerified: boolean;
+    databaseVerified: boolean;
+    verifiedAt: string;
+  };
+  protected: boolean;
+}
+
+interface BackupManifest {
+  version: 2;
+  database: string;
+  entries: BackupManifestEntry[];
 }
 
 // Real pg_dump / psql backed backup & restore. Nothing here is simulated —
@@ -115,17 +129,136 @@ export class BackupService implements OnModuleInit {
     await fs.mkdir(this.backupDir, { recursive: true });
   }
 
-  private async readManifest(): Promise<BackupManifestEntry[]> {
+  private async readManifest(): Promise<BackupManifest> {
     try {
       const raw = await fs.readFile(this.manifestPath, 'utf-8');
-      return JSON.parse(raw);
-    } catch {
-      return [];
+      const parsed: unknown = JSON.parse(raw);
+      if (
+        !parsed ||
+        typeof parsed !== 'object' ||
+        (parsed as { version?: unknown }).version !== 2 ||
+        typeof (parsed as { database?: unknown }).database !== 'string' ||
+        !Array.isArray((parsed as { entries?: unknown }).entries)
+      ) {
+        throw new Error('manifest version or shape is invalid');
+      }
+      return parsed as BackupManifest;
+    } catch (err) {
+      if ((err as { code?: string }).code === 'ENOENT') {
+        return {
+          version: 2,
+          database: process.env.POSTGRES_DB || 'unknown',
+          entries: [],
+        };
+      }
+      if (err instanceof SyntaxError) {
+        throw new Error(`Backup manifest is corrupt: ${err.message}`);
+      }
+      if (err instanceof Error && err.message.startsWith('Backup manifest is corrupt')) {
+        throw err;
+      }
+      throw new Error(`Backup manifest is unreadable or invalid: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
-  private async writeManifest(entries: BackupManifestEntry[]) {
-    await fs.writeFile(this.manifestPath, JSON.stringify(entries, null, 2));
+  private async writeManifest(manifest: BackupManifest) {
+    const temporaryPath = `${this.manifestPath}.${process.pid}.${Date.now()}.tmp`;
+    let handle: fs.FileHandle | undefined;
+    try {
+      handle = await fs.open(temporaryPath, 'w');
+      await handle.writeFile(JSON.stringify(manifest, null, 2));
+      await handle.sync();
+      await handle.close();
+      handle = undefined;
+      await fs.rename(temporaryPath, this.manifestPath);
+    } finally {
+      if (handle) await handle.close();
+      await fs.unlink(temporaryPath).catch(() => undefined);
+    }
+  }
+
+  private async calculateSha256(filepath: string): Promise<string> {
+    const hash = createHash('sha256');
+    for await (const chunk of createReadStream(filepath)) {
+      hash.update(chunk as Buffer);
+    }
+    return hash.digest('hex');
+  }
+
+  private async verifyGzip(filepath: string): Promise<void> {
+    await pipeline(
+      createReadStream(filepath),
+      createGunzip(),
+      new Writable({
+        write(_chunk, _encoding, callback) {
+          callback();
+        },
+      }),
+    );
+  }
+
+  private async createVerifiedSnapshot(filename: string, manifest: BackupManifest): Promise<string> {
+    const entry = await this.validateRecoveryPoint(filename, manifest);
+    const sourcePath = this.resolveSafePath(entry.filename);
+    const snapshotPath = `${sourcePath}.${process.pid}.${Date.now()}.restore.tmp`;
+    const sourceHandle = await fs.open(sourcePath, 'r');
+
+    try {
+      await pipeline(
+        createReadStream(sourcePath, { fd: sourceHandle.fd, autoClose: false }),
+        createWriteStream(snapshotPath, { flags: 'wx' }),
+      );
+      const [sha256] = await Promise.all([
+        this.calculateSha256(snapshotPath),
+        this.verifyGzip(snapshotPath),
+      ]);
+      const snapshotStat = await fs.stat(snapshotPath);
+      if (snapshotStat.size !== entry.sizeBytes || sha256 !== entry.sha256) {
+        throw new BadRequestException('Backup changed during validation');
+      }
+      return snapshotPath;
+    } catch (err) {
+      await fs.unlink(snapshotPath).catch(() => undefined);
+      throw err;
+    } finally {
+      await sourceHandle.close();
+    }
+  }
+
+  private async validateRecoveryPoint(filename: string, manifest: BackupManifest): Promise<BackupManifestEntry> {
+    const safeFilename = this.sanitizeFilename(filename);
+    const entry = manifest.entries.find(candidate => candidate.filename === safeFilename);
+    if (!entry) throw new BadRequestException('Backup is not registered in the manifest');
+    if (!/^[a-f0-9]{64}$/.test(entry.sha256)) {
+      throw new BadRequestException('Backup has an invalid checksum');
+    }
+
+    const filepath = this.resolveSafePath(entry.filename);
+    let stat;
+    try {
+      const link = await fs.lstat(filepath);
+      if (link.isSymbolicLink()) {
+        throw new BadRequestException('Backup file must not be a symbolic link');
+      }
+      stat = await fs.stat(filepath);
+    } catch (err) {
+      if (err instanceof BadRequestException) throw err;
+      throw new BadRequestException('Backup file not found');
+    }
+    if (stat.size !== entry.sizeBytes) {
+      throw new BadRequestException('Backup size does not match the manifest');
+    }
+
+    try {
+      const [sha256] = await Promise.all([this.calculateSha256(filepath), this.verifyGzip(filepath)]);
+      if (sha256 !== entry.sha256) {
+        throw new BadRequestException('Backup checksum does not match the manifest');
+      }
+    } catch (err) {
+      if (err instanceof BadRequestException) throw err;
+      throw new BadRequestException(`Backup gzip integrity verification failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    return entry;
   }
 
   private waitForProcessExit(process: ChildProcessWithoutNullStreams): Promise<number> {
@@ -225,8 +358,53 @@ export class BackupService implements OnModuleInit {
       let stderr = '';
       pgDump.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
 
+      let published = false;
       try {
         await this.completeBackupProcess(pgDump, gzip, out, () => stderr);
+        const [sha256] = await Promise.all([
+          this.calculateSha256(temporaryFilepath),
+          this.verifyGzip(temporaryFilepath),
+        ]);
+        const stat = await fs.stat(temporaryFilepath);
+        await fs.rename(temporaryFilepath, filepath);
+        published = true;
+
+        let uploadedToRemote = false;
+        if (this.isRemoteStorageConfigured()) {
+          try {
+            await this.uploadToRemote(filepath, filename);
+            uploadedToRemote = true;
+          } catch (err) {
+            this.logger.error('Remote backup upload failed (backup itself still succeeded locally)', err instanceof Error ? err.stack : err);
+          }
+        }
+
+        const manifest = await this.readManifest().catch(err => {
+          if ((err as Error).message.includes('manifest')) throw err;
+          throw new Error(`Unable to read backup manifest: ${String(err)}`);
+        });
+        manifest.entries.push({
+          filename,
+          sizeBytes: stat.size,
+          sha256,
+          createdAt: new Date().toISOString(),
+          triggeredBy,
+          uploadedToRemote,
+          validation: {
+            gzipVerified: true,
+            databaseVerified: false,
+            verifiedAt: new Date().toISOString(),
+          },
+          protected: triggeredBy === 'pre-restore-safety',
+        });
+        await this.writeManifest(manifest);
+        await this.pruneOldBackups();
+
+        if (userId) {
+          await this.auditService.logUserAction(userId, 'BACKUP_CREATED', 'System', filename, ipAddress, userAgent);
+        }
+
+        return { filename, sizeBytes: stat.size, createdAt: new Date().toISOString(), triggeredBy, uploadedToRemote };
       } catch (err) {
         // Clean up a partial temporary file rather than publishing a corrupt backup.
         pgDump.kill();
@@ -242,61 +420,24 @@ export class BackupService implements OnModuleInit {
         out.destroy();
         await outputClosed;
         await fs.unlink(temporaryFilepath).catch(() => undefined);
+        if (!published && await fs.access(filepath).then(() => true).catch(() => false)) {
+          await fs.unlink(filepath).catch(() => undefined);
+        }
         throw new InternalServerErrorException(`Backup failed: ${err instanceof Error ? err.message : String(err)}`);
       }
-
-      await fs.rename(temporaryFilepath, filepath);
-
-      const stat = await fs.stat(filepath);
-      let uploadedToRemote = false;
-
-      if (this.isRemoteStorageConfigured()) {
-        try {
-          await this.uploadToRemote(filepath, filename);
-          uploadedToRemote = true;
-        } catch (err) {
-          this.logger.error('Remote backup upload failed (backup itself still succeeded locally)', err instanceof Error ? err.stack : err);
-        }
-      }
-
-      const manifest = await this.readManifest();
-      manifest.push({
-        filename,
-        sizeBytes: stat.size,
-        createdAt: new Date().toISOString(),
-        triggeredBy,
-        uploadedToRemote,
-      });
-      await this.writeManifest(manifest);
-
-      await this.pruneOldBackups();
-
-      if (userId) {
-        await this.auditService.logUserAction(userId, 'BACKUP_CREATED', 'System', filename, ipAddress, userAgent);
-      }
-
-      return { filename, sizeBytes: stat.size, createdAt: new Date().toISOString(), triggeredBy, uploadedToRemote };
   }
 
   async listBackups() {
     await this.ensureBackupDir();
     const manifest = await this.readManifest();
-    // Reconcile against what's actually on disk — a manifest entry for a
-    // file that was manually deleted shouldn't be reported as available.
-    // Treat manifest contents as untrusted - validate each filename.
     const existing: BackupManifestEntry[] = [];
-    for (const entry of manifest) {
+    for (const entry of manifest.entries) {
       try {
-        // Use centralized safe path resolver to prevent manifest path traversal
-        const safePath = this.resolveSafePath(entry.filename);
-        await fs.access(safePath);
+        await this.validateRecoveryPoint(entry.filename, manifest);
         existing.push(entry);
       } catch {
-        // File no longer present or invalid filename — drop it from the list.
+        this.logger.warn(`Skipping invalid backup recovery point: ${entry.filename}`);
       }
-    }
-    if (existing.length !== manifest.length) {
-      await this.writeManifest(existing);
     }
     return existing.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
@@ -344,50 +485,49 @@ export class BackupService implements OnModuleInit {
 
   async restoreBackup(filename: string, userId: string, ipAddress?: string, userAgent?: string) {
     return this.withOperationLock(async () => {
-      const filepath = this.resolveSafePath(filename);
-
-      try {
-        await fs.access(filepath);
-      } catch {
-        throw new BadRequestException('Backup file not found');
-      }
+      const manifest = await this.readManifest();
+      await this.validateRecoveryPoint(filename, manifest);
 
       // Safety net: always take a fresh backup of the CURRENT state right
       // before overwriting it, so a restore is never a one-way door.
       await this.runBackupUnlocked('pre-restore-safety', userId, ipAddress, userAgent);
+      const validatedSnapshot = await this.createVerifiedSnapshot(filename, await this.readManifest());
 
-      const { host, port, user, password, database } = this.getDbConnectionParams();
-
-      // Use ON_ERROR_STOP to ensure psql stops on first SQL error
-      // Use single-transaction to ensure atomic restore
-      const psql = spawn(
-        'psql',
-        [
-          '--host', host,
-          '--port', port,
-          '--username', user,
-          '--dbname', database,
-          '--set=ON_ERROR_STOP=on',
-          '--single-transaction',
-        ],
-        { env: { ...process.env, PGPASSWORD: password } },
-      );
-
-      let stderr = '';
-      let stdout = '';
-      psql.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
-      psql.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
-
+      let psql: ChildProcessWithoutNullStreams | undefined;
       try {
+        const { host, port, user, password, database } = this.getDbConnectionParams();
+
+        // Use ON_ERROR_STOP to ensure psql stops on first SQL error
+        // Use single-transaction to ensure atomic restore
+        psql = spawn(
+          'psql',
+          [
+            '--host', host,
+            '--port', port,
+            '--username', user,
+            '--dbname', database,
+            '--set=ON_ERROR_STOP=on',
+            '--single-transaction',
+          ],
+          { env: { ...process.env, PGPASSWORD: password } },
+        );
+
+        let stderr = '';
+        let stdout = '';
+        psql.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+        psql.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
+
         const gunzip = createGunzip();
-        const input = createReadStream(filepath);
+        const input = createReadStream(validatedSnapshot);
         await this.completeRestoreProcess(psql, input, gunzip, () => stderr, () => stdout);
       } catch (err) {
         // Restore failed - pre-restore safety backup remains available
-        psql.kill();
+        psql?.kill();
         const message = err instanceof Error ? err.message : String(err);
         this.logger.error(`Restore failed: ${message}`);
         throw new InternalServerErrorException(`Restore failed: ${message}`);
+      } finally {
+        await fs.unlink(validatedSnapshot).catch(() => undefined);
       }
 
       await this.auditService.logUserAction(userId, 'RESTORE_EXECUTED', 'System', filename, ipAddress, userAgent);
@@ -401,7 +541,7 @@ export class BackupService implements OnModuleInit {
     const manifest = await this.readManifest();
     const kept: BackupManifestEntry[] = [];
 
-    for (const entry of manifest) {
+    for (const entry of manifest.entries) {
       if (new Date(entry.createdAt).getTime() < cutoff) {
         // Use centralized safe path resolver to prevent manifest path traversal
         try {
@@ -415,7 +555,7 @@ export class BackupService implements OnModuleInit {
         kept.push(entry);
       }
     }
-    await this.writeManifest(kept);
+    await this.writeManifest({ ...manifest, entries: kept });
   }
 
   private isRemoteStorageConfigured(): boolean {
@@ -433,12 +573,11 @@ export class BackupService implements OnModuleInit {
       forcePathStyle: true, // required by most non-AWS S3-compatible providers
     });
 
-    const body = await fs.readFile(filepath);
     await client.send(
       new PutObjectCommand({
         Bucket: process.env.BACKUP_S3_BUCKET,
         Key: `clinic-backups/${filename}`,
-        Body: body,
+        Body: createReadStream(filepath),
       }),
     );
   }
