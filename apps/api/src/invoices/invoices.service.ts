@@ -291,6 +291,22 @@ export class InvoicesService {
         throw new BadRequestException('Invoice is already issued and cannot be re-issued');
       }
 
+      if (updateStatusDto.status === 'VOID') {
+        const recordedPayment = await tx.payment.findFirst({
+          where: {
+            invoiceId: id,
+            status: 'RECORDED',
+          },
+          select: { id: true },
+        });
+
+        if (recordedPayment) {
+          throw new BadRequestException(
+            'Invoice cannot be voided while recorded payments exist. Reverse all payments before voiding the invoice.',
+          );
+        }
+      }
+
       const data: { status: InvoiceStatus; issuedAt?: Date; issuedById?: string; invoiceNumber?: string } = {
         status: updateStatusDto.status,
       };
@@ -596,6 +612,15 @@ export class InvoicesService {
         amount: allocation.amount,
       }));
 
+      // Release the active-invoice constraint before creating the replacement.
+      // The surrounding transaction rolls this back if replacement creation fails.
+      await tx.invoice.update({
+        where: { id: originalInvoiceId },
+        data: {
+          status: 'VOID',
+        },
+      });
+
       // Create replacement invoice
       const replacementInvoice = await tx.invoice.create({
         data: {
@@ -626,7 +651,6 @@ export class InvoicesService {
       await tx.invoice.update({
         where: { id: originalInvoiceId },
         data: {
-          status: 'VOID',
           replacedByInvoiceId: replacementInvoice.id,
         },
       });

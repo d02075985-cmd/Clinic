@@ -616,6 +616,107 @@ describe('Invoices Module Tests (E2E)', () => {
       originalInvoiceId = invoice.body.id;
     });
 
+    it('should reject voiding an issued invoice with a recorded payment', async () => {
+      const visit = await prisma.visit.create({
+        data: { patientId: testPatientId, type: 'OTHER', createdById: adminUserId },
+      });
+
+      const invoice = await request(app.getHttpServer())
+        .post('/api/invoices')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send({
+          visitId: visit.id,
+          items: [{ serviceId: testServiceAId, quantity: 1 }],
+        })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .patch(`/api/invoices/${invoice.body.id}/status`)
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send({ status: 'ISSUED' })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post('/api/payments')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send({
+          invoiceId: invoice.body.id,
+          amount: 10,
+          method: 'CASH',
+        })
+        .expect(201);
+
+      const response = await request(app.getHttpServer())
+        .patch(`/api/invoices/${invoice.body.id}/status`)
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send({ status: 'VOID' })
+        .expect(400);
+
+      expect(response.body.message).toBe(
+        'Invoice cannot be voided while recorded payments exist. Reverse all payments before voiding the invoice.',
+      );
+
+      const unchangedInvoice = await prisma.invoice.findUnique({
+        where: { id: invoice.body.id },
+      });
+      expect(unchangedInvoice?.status).toBe('ISSUED');
+
+      const recordedPayments = await prisma.payment.findMany({
+        where: { invoiceId: invoice.body.id, status: 'RECORDED' },
+      });
+      expect(recordedPayments).toHaveLength(1);
+    });
+
+    it('should allow voiding an issued invoice after all payments are reversed', async () => {
+      const visit = await prisma.visit.create({
+        data: { patientId: testPatientId, type: 'OTHER', createdById: adminUserId },
+      });
+
+      const invoice = await request(app.getHttpServer())
+        .post('/api/invoices')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send({
+          visitId: visit.id,
+          items: [{ serviceId: testServiceAId, quantity: 1 }],
+        })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .patch(`/api/invoices/${invoice.body.id}/status`)
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send({ status: 'ISSUED' })
+        .expect(200);
+
+      const payment = await request(app.getHttpServer())
+        .post('/api/payments')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send({
+          invoiceId: invoice.body.id,
+          amount: 10,
+          method: 'CASH',
+        })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post(`/api/payments/${payment.body.id}/reverse`)
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send({ reversalNotes: 'Correction before voiding' })
+        .expect(201);
+
+      const response = await request(app.getHttpServer())
+        .patch(`/api/invoices/${invoice.body.id}/status`)
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send({ status: 'VOID' })
+        .expect(200);
+
+      expect(response.body.status).toBe('VOID');
+
+      const historicalPayment = await prisma.payment.findUnique({
+        where: { id: payment.body.id },
+      });
+      expect(historicalPayment?.status).toBe('REVERSED');
+    });
+
     it('should reject receptionist voiding invoice', async () => {
       const visit = await prisma.visit.create({
         data: { patientId: testPatientId, type: 'OTHER', createdById: adminUserId },

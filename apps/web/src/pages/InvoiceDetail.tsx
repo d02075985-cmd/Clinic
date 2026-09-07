@@ -133,7 +133,11 @@ export default function InvoiceDetail() {
         </button>
 
         {formError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+          <div
+            role="alert"
+            aria-live="polite"
+            className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4"
+          >
             {formError}
           </div>
         )}
