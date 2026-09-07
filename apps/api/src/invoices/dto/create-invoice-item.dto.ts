@@ -16,7 +16,7 @@ export class CreateInvoiceItemDto {
   // exact amount is what gets snapshotted onto the invoice item — the
   // service's own default price is never touched by this.
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @IsOptional()
   @Min(0)
   unitPrice?: number;

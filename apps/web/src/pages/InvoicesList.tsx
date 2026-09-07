@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { invoicesService, Invoice } from '../services/invoices.service';
 import { useTranslation } from 'react-i18next';
 import { formatDate as formatDateUtil } from '../utils/dateFormat';
+import { formatMoney } from '../utils/money';
 
 export default function InvoicesList() {
   const { t, i18n } = useTranslation();
@@ -129,10 +130,10 @@ export default function InvoicesList() {
                     <td className="px-6 py-4 font-medium text-gray-900">{invoice.invoiceNumber}</td>
                     <td className="px-6 py-4 text-gray-900">{invoice.patient?.fullNameAr}</td>
                     <td className="px-6 py-4 text-gray-900 font-medium">
-                      {parseFloat(invoice.total).toFixed(3)} {t('common.currency')}
+                      {formatMoney(invoice.total, i18n.language)} {t('common.currency')}
                     </td>
                     <td className="px-6 py-4 text-gray-900">
-                      {parseFloat(invoice.remaining).toFixed(3)} {t('common.currency')}
+                      {formatMoney(invoice.remaining, i18n.language)} {t('common.currency')}
                     </td>
                     <td className="px-6 py-4">{getStatusBadge(invoice.status)}</td>
                     <td className="px-6 py-4">{getPaymentBadge(invoice.paymentStatus)}</td>

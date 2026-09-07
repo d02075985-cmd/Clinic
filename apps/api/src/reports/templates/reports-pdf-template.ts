@@ -1,4 +1,5 @@
 import { CLINIC_LOGO_BASE64 } from '../../invoices/pdf/clinic-logo';
+import { Decimal } from '@prisma/client/runtime/library';
 
 export interface ReportsExportData {
   from: string;
@@ -64,7 +65,7 @@ const TEXT: Record<Lang, Record<string, string>> = {
 };
 
 function money(v: number, t: Record<string, string>): string {
-  return `${v.toFixed(2)} ${t.currency}`;
+  return `${new Decimal(String(v)).toDecimalPlaces(2).toFixed(2)} ${t.currency}`;
 }
 function label(t: Record<string, string>, key: string): string {
   return t[key] || key;

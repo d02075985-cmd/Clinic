@@ -12,9 +12,10 @@ import { patientsService } from '../services/patients.service';
 import { appointmentsService } from '../services/appointments.service';
 import { visitsService } from '../services/visits.service';
 import { reportsService } from '../services/reports.service';
+import { formatMoney } from '../utils/money';
 
 export default function Dashboard() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'ADMIN';
@@ -142,7 +143,7 @@ export default function Dashboard() {
               />
               <StatCard
                 label={t('dashboard.totalOutstanding')}
-                value={isAdmin ? (reportsData ?? 0) : null}
+                value={isAdmin ? formatMoney(reportsData ?? 0, i18n.language) : null}
                 icon={Wallet}
               />
             </div>

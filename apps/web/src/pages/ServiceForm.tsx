@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { servicesService, CreateServiceDto, UpdateServiceDto } from '../services/services.service';
 import { useTranslation } from 'react-i18next';
+import { moneyToCents, normalizeMoneyInput } from '../utils/money';
 
 export default function ServiceForm() {
   const { t } = useTranslation();
@@ -101,8 +102,13 @@ export default function ServiceForm() {
   };
 
   const handlePriceChange = (value: string) => {
-    const price = parseFloat(value);
-    setFormData((prev) => ({ ...prev, currentPrice: isNaN(price) ? 0 : price }));
+    const cents = moneyToCents(normalizeMoneyInput(value));
+    if (value !== '' && cents === null) {
+      setErrors((previous) => ({ ...previous, currentPrice: t('invoices.invalidMoneyPrecision') }));
+      return;
+    }
+    const price = cents === null ? 0 : cents / 100;
+    setFormData((prev) => ({ ...prev, currentPrice: price }));
 
     // Show warning if editing and price is being changed
     if (isEdit && serviceData && price !== parseFloat(serviceData.currentPrice)) {
@@ -211,14 +217,15 @@ export default function ServiceForm() {
               </label>
               <div className="flex items-center gap-2">
                 <input
-                  type="number"
-                  step="0.001"
+                  type="text"
+                  inputMode="decimal"
+                  step="0.01"
                   min="0"
                   value={formData.currentPrice}
                   onChange={(e) => handlePriceChange(e.target.value)}
                   className={`flex-1 px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844] ${errors.currentPrice ? 'border-red-500' : 'border-gray-300'
                     }`}
-                  placeholder="0.000"
+                  placeholder="0.00"
                 />
                 <span className="text-gray-500 shrink-0">{t('common.currency')}</span>
               </div>
@@ -275,4 +282,3 @@ export default function ServiceForm() {
     </div>
   );
 }
-

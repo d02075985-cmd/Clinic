@@ -5,6 +5,7 @@ import { Printer, Calendar } from 'lucide-react';
 import { reportsService } from '../services/reports.service';
 import { formatDateTime } from '../utils/dateFormat';
 import DateInput from '../components/DateInput';
+import { formatMoney } from '../utils/money';
 
 const PAYMENT_METHOD_KEYS: Record<string, string> = {
   CASH: 'payments.methodCash',
@@ -81,15 +82,15 @@ export default function DailyClosingPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
             <div className="ui-card p-4">
               <div className="text-xs text-[#64748B] mb-1">{t('dailyClosing.totalInvoiced')}</div>
-              <div className="text-xl font-bold text-[#102F63]">{data.totalInvoiced.toFixed(2)} {t('common.currency')}</div>
+              <div className="text-xl font-bold text-[#102F63]">{formatMoney(data.totalInvoiced, i18n.language)} {t('common.currency')}</div>
             </div>
             <div className="ui-card p-4">
               <div className="text-xs text-[#64748B] mb-1">{t('dailyClosing.totalCollected')}</div>
-              <div className="text-xl font-bold text-[var(--success)]">{data.totalCollected.toFixed(2)} {t('common.currency')}</div>
+              <div className="text-xl font-bold text-[var(--success)]">{formatMoney(data.totalCollected, i18n.language)} {t('common.currency')}</div>
             </div>
             <div className="ui-card p-4">
               <div className="text-xs text-[#64748B] mb-1">{t('invoices.remaining')}</div>
-              <div className="text-xl font-bold text-[#C4362B]">{data.totalRemaining.toFixed(2)} {t('common.currency')}</div>
+              <div className="text-xl font-bold text-[#C4362B]">{formatMoney(data.totalRemaining, i18n.language)} {t('common.currency')}</div>
             </div>
             <div className="ui-card p-4">
               <div className="text-xs text-[#64748B] mb-1">{t('dailyClosing.invoiceCount')}</div>
@@ -108,7 +109,7 @@ export default function DailyClosingPage() {
                   {data.paymentMethods.map((m) => (
                     <div key={m.method} className="flex items-center justify-between text-sm border-b border-[#E2E8F0] last:border-0 pb-2 last:pb-0">
                       <span className="text-[#1F2430]">{t(PAYMENT_METHOD_KEYS[m.method] || m.method)}</span>
-                      <span className="font-medium text-[#102F63]">{m.amount.toFixed(2)} {t('common.currency')} ({m.count})</span>
+                      <span className="font-medium text-[#102F63]">{formatMoney(m.amount, i18n.language)} {t('common.currency')} ({m.count})</span>
                     </div>
                   ))}
                 </div>
@@ -159,9 +160,9 @@ export default function DailyClosingPage() {
                     <tr key={inv.id}>
                       <td className="font-mono text-[#64748B]">{inv.invoiceNumber}</td>
                       <td className="text-[#1F2430]">{inv.patientName}</td>
-                      <td>{inv.total.toFixed(2)} {t('common.currency')}</td>
-                      <td>{inv.paid.toFixed(2)} {t('common.currency')}</td>
-                      <td className={inv.remaining > 0 ? 'text-[#C4362B]' : ''}>{inv.remaining.toFixed(2)} {t('common.currency')}</td>
+                      <td>{formatMoney(inv.total, i18n.language)} {t('common.currency')}</td>
+                      <td>{formatMoney(inv.paid, i18n.language)} {t('common.currency')}</td>
+                      <td className={inv.remaining > 0 ? 'text-[#C4362B]' : ''}>{formatMoney(inv.remaining, i18n.language)} {t('common.currency')}</td>
                       <td>{paymentStatusLabels[inv.paymentStatus]}</td>
                     </tr>
                   ))}
@@ -193,7 +194,7 @@ export default function DailyClosingPage() {
                     <tr key={p.id}>
                       <td className="font-mono text-[#64748B]">{p.invoiceNumber}</td>
                       <td className="text-[#1F2430]">{p.patientName}</td>
-                      <td>{p.amount.toFixed(2)} {t('common.currency')}</td>
+                      <td>{formatMoney(p.amount, i18n.language)} {t('common.currency')}</td>
                       <td>{t(PAYMENT_METHOD_KEYS[p.method] || p.method)}</td>
                       <td className="text-[#64748B]">{formatDateTime(p.paymentDate, i18n.language)}</td>
                     </tr>

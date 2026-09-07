@@ -236,6 +236,7 @@
     "paymentStatusLabel": "Payment Status",
     "addOneServiceError": "Add at least one service",
     "noLinkedVisitError": "Cannot create an invoice without a linked visit",
+    "invalidMoneyPrecision": "Amounts must contain no more than 2 decimal places",
     "mustStartFromVisit": "Cannot create an invoice without selecting a visit. Please start from the visit page.",
     "newInvoice": "New Invoice",
     "chooseService": "Choose a service...",

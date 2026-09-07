@@ -5,6 +5,7 @@ import { visitsService } from '../services/visits.service';
 import { servicesService } from '../services/services.service';
 import { invoicesService, CreateInvoiceDto } from '../services/invoices.service';
 import { useTranslation } from 'react-i18next';
+import { centsToMoney, formatMoney, moneyToCents, normalizeMoneyInput, roundDivide } from '../utils/money';
 
 interface LineItem {
   serviceId: string;
@@ -19,7 +20,7 @@ interface AdditionalCharge {
 }
 
 export default function InvoiceForm() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const visitId = searchParams.get('visitId') || '';
@@ -40,6 +41,16 @@ export default function InvoiceForm() {
   });
 
   const services = servicesData?.data || [];
+
+  const parseMoneyField = (value: string): number | null => {
+    const normalized = normalizeMoneyInput(value);
+    const cents = moneyToCents(normalized);
+    if (value !== '' && cents === null) {
+      setError(t('invoices.invalidMoneyPrecision'));
+      return null;
+    }
+    return cents === null ? null : cents / 100;
+  };
 
   const createMutation = useMutation({
     mutationFn: (data: CreateInvoiceDto) => invoicesService.createInvoice(data),
@@ -70,22 +81,23 @@ export default function InvoiceForm() {
     setItems(updated);
   };
 
-  const subtotal = items.reduce((sum, item) => {
+  const subtotalCents = items.reduce((sum, item) => {
     const service = services.find((s) => s.id === item.serviceId);
     if (!service) return sum;
-    const price = item.unitPrice !== null ? item.unitPrice : parseFloat(service.currentPrice);
-    return sum + price * (item.quantity || 0);
+    const priceCents = moneyToCents(item.unitPrice !== null ? item.unitPrice : service.currentPrice) || 0;
+    return sum + priceCents * (item.quantity || 0);
   }, 0);
 
-  const totalCharges = additionalCharges.reduce((sum, charge) => {
+  const totalChargesCents = additionalCharges.reduce((sum, charge) => {
+    const chargeCents = moneyToCents(charge.chargeValue) || 0;
     if (charge.chargeType === 'PERCENTAGE') {
-      return sum + (subtotal * charge.chargeValue) / 100;
+      return sum + roundDivide(subtotalCents * chargeCents, 10000);
     } else {
-      return sum + charge.chargeValue;
+      return sum + chargeCents;
     }
   }, 0);
 
-  const total = subtotal + totalCharges;
+  const totalCents = subtotalCents + totalChargesCents;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,7 +112,7 @@ export default function InvoiceForm() {
         // own default price — omitting it otherwise keeps existing behavior
         // (backend falls back to the service's currentPrice automatically).
         ...(i.unitPrice !== null &&
-          i.unitPrice !== parseFloat(services.find((s) => s.id === i.serviceId)?.currentPrice || '0')
+          moneyToCents(i.unitPrice) !== moneyToCents(services.find((s) => s.id === i.serviceId)?.currentPrice)
           ? { unitPrice: i.unitPrice }
           : {}),
       }));
@@ -189,7 +201,7 @@ export default function InvoiceForm() {
                     <option value="">{t('invoices.chooseService')}</option>
                     {services.map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.name} — {parseFloat(s.currentPrice).toFixed(3)} {t('common.currency')}
+                        {s.name} — {formatMoney(s.currentPrice, i18n.language)} {t('common.currency')}
                       </option>
                     ))}
                   </select>
@@ -201,18 +213,21 @@ export default function InvoiceForm() {
                     className="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844]"
                   />
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     min={0}
-                    step="0.001"
+                    step="0.01"
                     value={item.unitPrice ?? ''}
-                    onChange={(e) => updateLine(index, 'unitPrice', e.target.value === '' ? null : parseFloat(e.target.value))}
+                    onChange={(e) => updateLine(index, 'unitPrice', e.target.value === '' ? null : parseMoneyField(e.target.value))}
                     disabled={!item.serviceId}
                     placeholder={t('services.price')}
                     className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844] disabled:bg-gray-100 disabled:cursor-not-allowed"
                     title={t('invoices.priceOverrideHint')}
                   />
                   <div className="w-24 pt-2 text-gray-700 text-sm">
-                    {service && item.unitPrice !== null ? (item.unitPrice * item.quantity).toFixed(3) : '0.000'} {t('common.currency')}
+                    {service && item.unitPrice !== null
+                      ? formatMoney(centsToMoney((moneyToCents(item.unitPrice) || 0) * item.quantity), i18n.language)
+                      : formatMoney(0, i18n.language)} {t('common.currency')}
                   </div>
                   {items.length > 1 && (
                     <button
@@ -250,11 +265,12 @@ export default function InvoiceForm() {
                   <option value="PERCENTAGE">{t('invoices.chargeTypePercentage')}</option>
                 </select>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   min={0}
-                  step="0.001"
+                  step="0.01"
                   value={charge.chargeValue}
-                  onChange={(e) => updateCharge(index, 'chargeValue', parseFloat(e.target.value) || 0)}
+                  onChange={(e) => updateCharge(index, 'chargeValue', parseMoneyField(e.target.value) || 0)}
                   placeholder={charge.chargeType === 'PERCENTAGE' ? t('invoices.percentagePlaceholder') : t('invoices.amountPlaceholder')}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844]"
                 />
@@ -267,8 +283,8 @@ export default function InvoiceForm() {
                 />
                 <div className="w-24 pt-2 text-gray-700 text-sm">
                   {charge.chargeType === 'PERCENTAGE'
-                    ? `${((subtotal * charge.chargeValue) / 100).toFixed(3)} ${t('common.currency')}`
-                    : `${charge.chargeValue.toFixed(3)} ${t('common.currency')}`
+                    ? `${formatMoney(centsToMoney(roundDivide(subtotalCents * (moneyToCents(charge.chargeValue) || 0), 10000)), i18n.language)} ${t('common.currency')}`
+                    : `${formatMoney(charge.chargeValue, i18n.language)} ${t('common.currency')}`
                   }
                 </div>
                 {additionalCharges.length > 1 && (
@@ -294,25 +310,25 @@ export default function InvoiceForm() {
           <div className="border-t border-gray-200 pt-4 space-y-2 mb-6">
             <div className="flex justify-between items-center">
               <span className="text-gray-600">{t('invoices.subtotal')}</span>
-              <span className="text-gray-900">{subtotal.toFixed(3)} {t('common.currency')}</span>
+              <span className="text-gray-900">{formatMoney(centsToMoney(subtotalCents), i18n.language)} {t('common.currency')}</span>
             </div>
             {additionalCharges.map((charge, index) => (
               <div key={index} className="flex justify-between items-center text-sm">
                 <span className="text-gray-600">
                   {charge.description || (charge.chargeType === 'PERCENTAGE' ? t('invoices.percentageCharge') : t('invoices.fixedCharge'))}
-                  ({charge.chargeType === 'PERCENTAGE' ? `${charge.chargeValue}%` : `${charge.chargeValue.toFixed(3)} ${t('common.currency')}`})
+                  ({charge.chargeType === 'PERCENTAGE' ? `${charge.chargeValue}%` : `${formatMoney(charge.chargeValue, i18n.language)} ${t('common.currency')}`})
                 </span>
                 <span className="text-gray-900">
                   {charge.chargeType === 'PERCENTAGE'
-                    ? ((subtotal * charge.chargeValue) / 100).toFixed(3)
-                    : charge.chargeValue.toFixed(3)
+                    ? formatMoney(centsToMoney(roundDivide(subtotalCents * (moneyToCents(charge.chargeValue) || 0), 10000)), i18n.language)
+                    : formatMoney(charge.chargeValue, i18n.language)
                   } {t('common.currency')}
                 </span>
               </div>
             ))}
             <div className="border-t border-gray-200 pt-2 flex justify-between items-center">
               <span className="text-lg font-bold text-[#111844]">{t('invoices.total')}</span>
-              <span className="text-lg font-bold text-[#111844]">{total.toFixed(3)} {t('common.currency')}</span>
+              <span className="text-lg font-bold text-[#111844]">{formatMoney(centsToMoney(totalCents), i18n.language)} {t('common.currency')}</span>
             </div>
           </div>
 

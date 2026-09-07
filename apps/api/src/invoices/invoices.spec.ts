@@ -144,6 +144,21 @@ describe('Invoices Module Tests (E2E)', () => {
       testInvoiceId = response.body.id;
     });
 
+    it('should reject invoice prices with more than two decimal places', async () => {
+      const visit = await prisma.visit.create({
+        data: { patientId: testPatientId, type: 'OTHER', createdById: adminUserId },
+      });
+
+      await request(app.getHttpServer())
+        .post('/api/invoices')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send({
+          visitId: visit.id,
+          items: [{ serviceId: testServiceAId, quantity: 1, unitPrice: 1.001 }],
+        })
+        .expect(400);
+    });
+
     it('should snapshot the service name and price on the invoice item', async () => {
       const response = await request(app.getHttpServer())
         .get(`/api/invoices/${testInvoiceId}`)
@@ -486,6 +501,22 @@ describe('Invoices Module Tests (E2E)', () => {
       expect(response.body.additionalCharges).toHaveLength(1);
       expect(response.body.additionalCharges[0].chargeType).toBe('FIXED');
       expect(Number(response.body.additionalCharges[0].calculatedAmount)).toBe(5);
+    });
+
+    it('should reject charges with more than two decimal places', async () => {
+      const visit = await prisma.visit.create({
+        data: { patientId: testPatientId, type: 'OTHER', createdById: adminUserId },
+      });
+
+      await request(app.getHttpServer())
+        .post('/api/invoices')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send({
+          visitId: visit.id,
+          items: [{ serviceId: testServiceAId, quantity: 1 }],
+          additionalCharges: [{ chargeType: 'FIXED', chargeValue: 12.345 }],
+        })
+        .expect(400);
     });
 
     it('should add charge to existing draft invoice', async () => {

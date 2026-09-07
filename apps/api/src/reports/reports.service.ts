@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { Decimal } from '@prisma/client/runtime/library';
 
 function startOfDay(d: Date): Date {
   const x = new Date(d);
@@ -277,9 +278,18 @@ export class ReportsService {
       }),
     ]);
 
-    const totalInvoiced = invoicesToday.reduce((sum, inv) => sum + Number(inv.total), 0);
-    const totalCollected = paymentsToday.reduce((sum, p) => sum + Number(p.amount), 0);
-    const totalRemaining = invoicesToday.reduce((sum, inv) => sum + Number(inv.remaining), 0);
+    const totalInvoiced = invoicesToday
+      .reduce((sum, inv) => sum.add(inv.total), new Decimal(0))
+      .toDecimalPlaces(2)
+      .toNumber();
+    const totalCollected = paymentsToday
+      .reduce((sum, p) => sum.add(p.amount), new Decimal(0))
+      .toDecimalPlaces(2)
+      .toNumber();
+    const totalRemaining = invoicesToday
+      .reduce((sum, inv) => sum.add(inv.remaining), new Decimal(0))
+      .toDecimalPlaces(2)
+      .toNumber();
 
     const paymentStatusCounts: Record<string, number> = { UNPAID: 0, PARTIALLY_PAID: 0, PAID: 0 };
     for (const row of invoicePaymentStatusBreakdown) {

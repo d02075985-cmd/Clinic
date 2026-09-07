@@ -186,6 +186,14 @@ describe('Services Module Tests (E2E)', () => {
       expect(parseFloat(response.body.currentPrice)).toBe(0);
     });
 
+    it('should reject prices with more than two decimal places', async () => {
+      await request(app.getHttpServer())
+        .post('/api/services')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send({ name: 'Three decimal service', currentPrice: 1.001 })
+        .expect(400);
+    });
+
     it('should trim service name', async () => {
       const response = await request(app.getHttpServer())
         .post('/api/services')

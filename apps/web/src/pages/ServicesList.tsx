@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { servicesService, Service } from '../services/services.service';
 import { useTranslation } from 'react-i18next';
 import { formatDate } from '../utils/dateFormat';
+import { formatMoney } from '../utils/money';
 
 export default function ServicesList() {
   const { t, i18n } = useTranslation();
@@ -117,7 +118,7 @@ export default function ServicesList() {
                     {service.description && <div className="text-xs text-[#94A3B8]">{service.description}</div>}
                   </td>
                   <td className="font-mono text-[#64748B]">{service.code || '—'}</td>
-                  <td className="font-medium text-[#1F2430]">{parseFloat(service.currentPrice).toFixed(2)}</td>
+                  <td className="font-medium text-[#1F2430]">{formatMoney(service.currentPrice, i18n.language)}</td>
                   <td>
                     <span
                       className="ui-badge"

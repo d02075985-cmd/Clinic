@@ -9,6 +9,7 @@ import { reportsService } from '../services/reports.service';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import DateInput from '../components/DateInput';
+import { formatMoney, moneyToCents } from '../utils/money';
 
 const COLORS = ['#102F63', '#173B78', '#4B5694', '#8991A6', '#C4362B', '#C98200'];
 
@@ -36,7 +37,7 @@ function KpiCard({ icon: Icon, label, value, suffix }: { icon: typeof TrendingUp
 }
 
 export default function ReportsPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
   const PAYMENT_METHOD_LABELS: Record<string, string> = {
@@ -130,9 +131,9 @@ export default function ReportsPage() {
 
       {/* KPI row */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
-        <KpiCard icon={TrendingUp} label={t('reports.totalRevenue')} value={s ? s.totalRevenue.toFixed(0) : '—'} suffix={t('common.currency')} />
-        <KpiCard icon={Wallet} label={t('reports.totalCollected')} value={s ? s.totalCollected.toFixed(0) : '—'} suffix={t('common.currency')} />
-        <KpiCard icon={AlertCircle} label={t('reports.netProfit')} value={s ? (s.totalRevenue - s.outstandingAmount).toFixed(0) : '—'} suffix={t('common.currency')} />
+        <KpiCard icon={TrendingUp} label={t('reports.totalRevenue')} value={s ? formatMoney(s.totalRevenue, i18n.language) : '—'} suffix={t('common.currency')} />
+        <KpiCard icon={Wallet} label={t('reports.totalCollected')} value={s ? formatMoney(s.totalCollected, i18n.language) : '—'} suffix={t('common.currency')} />
+        <KpiCard icon={AlertCircle} label={t('reports.netProfit')} value={s ? formatMoney(((moneyToCents(s.totalRevenue) || 0) - (moneyToCents(s.outstandingAmount) || 0)) / 100, i18n.language) : '—'} suffix={t('common.currency')} />
         <KpiCard icon={UsersRound} label={t('reports.newPatientsCount')} value={s ? s.newPatients : '—'} />
         <KpiCard icon={CalendarDays} label={t('reports.totalAppointments')} value={s ? s.totalAppointments : '—'} />
         <KpiCard icon={ClipboardList} label={t('reports.totalVisits')} value={s ? s.totalVisits : '—'} />
@@ -174,7 +175,7 @@ export default function ReportsPage() {
                   <Pie data={paymentMethods.data} dataKey="amount" nameKey="method" innerRadius={45} outerRadius={75}>
                     {paymentMethods.data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                   </Pie>
-                  <Tooltip formatter={(v: number) => `${v.toFixed(2)} ${t('common.currency')}`} />
+                  <Tooltip formatter={(v: number) => `${formatMoney(v, i18n.language)} ${t('common.currency')}`} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="space-y-1.5 mt-2">
@@ -184,7 +185,7 @@ export default function ReportsPage() {
                       <span className="w-2.5 h-2.5 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
                       {PAYMENT_METHOD_LABELS[row.method] || row.method}
                     </span>
-                    <span className="font-medium text-[#1F2430]">{row.amount.toFixed(2)} {t('common.currency')}</span>
+                    <span className="font-medium text-[#1F2430]">{formatMoney(row.amount, i18n.language)} {t('common.currency')}</span>
                   </div>
                 ))}
               </div>
@@ -215,7 +216,7 @@ export default function ReportsPage() {
                   <tr key={row.serviceName} className="border-b border-[#E2E8F0] last:border-0">
                     <td className="py-2.5 text-[#1F2430]">{row.serviceName}</td>
                     <td className="py-2.5 text-center text-[#64748B]">{row.timesUsed}</td>
-                    <td className="py-2.5 text-left font-medium text-[#1F2430]">{row.revenue.toFixed(2)}</td>
+                    <td className="py-2.5 text-left font-medium text-[#1F2430]">{formatMoney(row.revenue, i18n.language)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -304,7 +305,7 @@ export default function ReportsPage() {
                     <div className="text-[#1F2430]">{row.patient.fullNameAr}</div>
                     <div className="text-xs text-[#94A3B8]">{row.invoiceNumber}</div>
                   </div>
-                  <span className="font-medium text-[#C4362B]">{parseFloat(row.remaining).toFixed(2)} {t('common.currency')}</span>
+                  <span className="font-medium text-[#C4362B]">{formatMoney(row.remaining, i18n.language)} {t('common.currency')}</span>
                 </div>
               ))}
             </div>

@@ -7,7 +7,7 @@ export class AddChargeDto {
   chargeType: ChargeType;
 
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   chargeValue: number;
 

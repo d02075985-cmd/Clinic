@@ -4,6 +4,7 @@ import { ArrowRight, User, Phone, IdCard, Calendar, Stethoscope, FileText, Recei
 import { visitsService, VisitStatus } from '../services/visits.service';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '../utils/dateFormat';
+import { formatMoney } from '../utils/money';
 
 export default function VisitDetail() {
   const { t, i18n } = useTranslation();
@@ -160,15 +161,15 @@ export default function VisitDetail() {
               </div>
               <div>
                 <div className="text-[#94A3B8] text-xs mb-1">{t('invoices.total')}</div>
-                <div className="font-medium text-[#1F2430]">{parseFloat(invoice.total).toFixed(2)} {t('common.currency')}</div>
+                <div className="font-medium text-[#1F2430]">{formatMoney(invoice.total, i18n.language)} {t('common.currency')}</div>
               </div>
               <div>
                 <div className="text-[#94A3B8] text-xs mb-1">{t('invoices.paid')}</div>
-                <div className="font-medium text-[#1F2430]">{parseFloat(invoice.paid).toFixed(2)} {t('common.currency')}</div>
+                <div className="font-medium text-[#1F2430]">{formatMoney(invoice.paid, i18n.language)} {t('common.currency')}</div>
               </div>
               <div>
                 <div className="text-[#94A3B8] text-xs mb-1">{t('invoices.remaining')}</div>
-                <div className="font-medium text-[#C4362B]">{parseFloat(invoice.remaining).toFixed(2)} {t('common.currency')}</div>
+                <div className="font-medium text-[#C4362B]">{formatMoney(invoice.remaining, i18n.language)} {t('common.currency')}</div>
               </div>
             </div>
             <div className="flex items-center justify-between">

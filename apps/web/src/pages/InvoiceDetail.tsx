@@ -6,6 +6,7 @@ import { invoicesService, CreateReplacementDto } from '../services/invoices.serv
 import { paymentsService, PaymentMethod } from '../services/payments.service';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '../utils/dateFormat';
+import { formatMoney, moneyToCents, normalizeMoneyInput } from '../utils/money';
 
 export default function InvoiceDetail() {
   const { t, i18n } = useTranslation();
@@ -51,7 +52,7 @@ export default function InvoiceDetail() {
     mutationFn: () =>
       paymentsService.createPayment({
         invoiceId: id!,
-        amount: parseFloat(paymentAmount),
+        amount: (moneyToCents(paymentAmount) || 0) / 100,
         method: paymentMethod,
         notes: paymentNotes || undefined,
       }),
@@ -91,8 +92,8 @@ export default function InvoiceDetail() {
   const handleRecordPayment = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    const amount = parseFloat(paymentAmount);
-    if (!amount || amount <= 0) {
+    const cents = moneyToCents(normalizeMoneyInput(paymentAmount));
+    if (cents === null || cents <= 0) {
       setFormError(t('payments.enterValidAmount'));
       return;
     }
@@ -220,9 +221,9 @@ export default function InvoiceDetail() {
               {invoice.invoiceItems.map((item) => (
                 <tr key={item.id}>
                   <td className="px-6 py-4 text-gray-900">{item.serviceNameSnapshot}</td>
-                  <td className="px-6 py-4 text-gray-700">{parseFloat(item.unitPriceSnapshot).toFixed(3)} {t('common.currency')}</td>
+                  <td className="px-6 py-4 text-gray-700">{formatMoney(item.unitPriceSnapshot, i18n.language)} {t('common.currency')}</td>
                   <td className="px-6 py-4 text-gray-700">{item.quantity}</td>
-                  <td className="px-6 py-4 text-gray-900 font-medium">{parseFloat(item.lineTotal).toFixed(3)} {t('common.currency')}</td>
+                  <td className="px-6 py-4 text-gray-900 font-medium">{formatMoney(item.lineTotal, i18n.language)} {t('common.currency')}</td>
                 </tr>
               ))}
             </tbody>
@@ -230,30 +231,30 @@ export default function InvoiceDetail() {
           <div className="border-t border-gray-200 p-4 space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">{t('invoices.subtotal')}</span>
-              <span className="text-gray-900">{parseFloat(invoice.subtotal).toFixed(3)} {t('common.currency')}</span>
+              <span className="text-gray-900">{formatMoney(invoice.subtotal, i18n.language)} {t('common.currency')}</span>
             </div>
             {invoice.additionalCharges && invoice.additionalCharges.length > 0 && (
               invoice.additionalCharges.map((charge) => (
                 <div key={charge.id} className="flex justify-between">
                   <span className="text-gray-600">
                     {charge.description || (charge.chargeType === 'PERCENTAGE' ? t('invoices.percentageCharge') : t('invoices.fixedCharge'))}
-                    ({charge.chargeType === 'PERCENTAGE' ? `${parseFloat(charge.chargeValue)}%` : `${parseFloat(charge.chargeValue).toFixed(3)} ${t('common.currency')}`})
+                    ({charge.chargeType === 'PERCENTAGE' ? `${charge.chargeValue}%` : `${formatMoney(charge.chargeValue, i18n.language)} ${t('common.currency')}`})
                   </span>
-                  <span className="text-gray-900">{parseFloat(charge.calculatedAmount).toFixed(3)} {t('common.currency')}</span>
+                  <span className="text-gray-900">{formatMoney(charge.calculatedAmount, i18n.language)} {t('common.currency')}</span>
                 </div>
               ))
             )}
             <div className="flex justify-between">
               <span className="text-gray-600">{t('invoices.total')}</span>
-              <span className="font-bold text-[#111844]">{parseFloat(invoice.total).toFixed(3)} {t('common.currency')}</span>
+              <span className="font-bold text-[#111844]">{formatMoney(invoice.total, i18n.language)} {t('common.currency')}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">{t('invoices.paid')}</span>
-              <span className="text-gray-900">{parseFloat(invoice.paid).toFixed(3)} {t('common.currency')}</span>
+              <span className="text-gray-900">{formatMoney(invoice.paid, i18n.language)} {t('common.currency')}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">{t('invoices.remaining')}</span>
-              <span className="font-bold text-[#C4362B]">{parseFloat(invoice.remaining).toFixed(3)} {t('common.currency')}</span>
+              <span className="font-bold text-[#C4362B]">{formatMoney(invoice.remaining, i18n.language)} {t('common.currency')}</span>
             </div>
           </div>
         </div>
@@ -306,9 +307,10 @@ export default function InvoiceDetail() {
               <div className="flex-1 min-w-[120px]">
                 <label className="block text-sm text-gray-600 mb-1">{t('payments.amount')}</label>
                 <input
-                  type="number"
-                  step="0.001"
-                  min="0.001"
+                  type="text"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0.01"
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844]"
@@ -370,7 +372,7 @@ export default function InvoiceDetail() {
               <tbody className="divide-y divide-gray-200">
                 {payments.map((payment) => (
                   <tr key={payment.id}>
-                    <td className="px-6 py-4 text-gray-900 font-medium">{parseFloat(payment.amount).toFixed(3)} {t('common.currency')}</td>
+                    <td className="px-6 py-4 text-gray-900 font-medium">{formatMoney(payment.amount, i18n.language)} {t('common.currency')}</td>
                     <td className="px-6 py-4 text-gray-700">{PAYMENT_METHOD_LABELS[payment.method]}</td>
                     <td className="px-6 py-4 text-gray-600">{formatDateTime(payment.paymentDate, i18n.language)}</td>
                     <td className="px-6 py-4 text-gray-600">{payment.recordedBy?.name || '—'}</td>

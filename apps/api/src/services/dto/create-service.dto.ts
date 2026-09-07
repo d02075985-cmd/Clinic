@@ -16,7 +16,7 @@ export class CreateServiceDto {
   @MaxLength(1000)
   description?: string;
 
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   currentPrice: number;
 

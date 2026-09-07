@@ -204,6 +204,14 @@ describe('Payments Module Tests (E2E)', () => {
         .expect(400);
     });
 
+    it('should reject a payment with more than two decimal places', async () => {
+      await request(app.getHttpServer())
+        .post('/api/payments')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send({ invoiceId: issuedInvoiceId, amount: 1.001, method: 'CASH' })
+        .expect(400);
+    });
+
     it('should reject an invalid payment method', async () => {
       await request(app.getHttpServer())
         .post('/api/payments')

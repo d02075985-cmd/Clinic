@@ -236,6 +236,7 @@
     "paymentStatusLabel": "حالة الدفع",
     "addOneServiceError": "أضف خدمة واحدة على الأقل",
     "noLinkedVisitError": "لا يمكن إنشاء فاتورة بدون زيارة مرتبطة",
+    "invalidMoneyPrecision": "يجب ألا تحتوي المبالغ على أكثر من منزلتين عشريتين",
     "mustStartFromVisit": "لا يمكن إنشاء فاتورة بدون تحديد الزيارة. الرجاء البدء من صفحة الزيارة.",
     "newInvoice": "فاتورة جديدة",
     "chooseService": "اختر الخدمة...",
