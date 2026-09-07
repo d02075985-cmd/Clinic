@@ -10,6 +10,8 @@ import { formatMoney, moneyToCents, normalizeMoneyInput } from '../utils/money';
 import Breadcrumb from '../components/Breadcrumb';
 import { getReturnTo } from '../utils/listState';
 import { preserveListState } from '../utils/listState';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useToast } from '../contexts/ToastContext';
 
 export default function InvoiceDetail() {
   const { t, i18n } = useTranslation();
@@ -17,6 +19,7 @@ export default function InvoiceDetail() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = getReturnTo(searchParams.toString(), '/invoices');
+  const { showToast } = useToast();
 
   const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
     CASH: t('payments.methodCash'),
@@ -49,8 +52,13 @@ export default function InvoiceDetail() {
     mutationFn: (status: 'ISSUED' | 'VOID') => invoicesService.updateInvoiceStatus(id!, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoice', id] });
+      setConfirmStatus(null);
+      showToast({ type: 'success', message: t('feedback.invoiceStatusUpdated') });
     },
-    onError: (err: Error) => setFormError(err.message),
+    onError: (err: Error) => {
+      setFormError(err.message);
+      showToast({ type: 'error', message: err.message || t('feedback.invoiceStatusFailed') });
+    },
   });
 
   const paymentMutation = useMutation({
@@ -67,8 +75,12 @@ export default function InvoiceDetail() {
       setFormError(null);
       queryClient.invalidateQueries({ queryKey: ['invoice', id] });
       queryClient.invalidateQueries({ queryKey: ['payments', id] });
+      showToast({ type: 'success', message: t('feedback.paymentRecorded') });
     },
-    onError: (err: Error) => setFormError(err.message),
+    onError: (err: Error) => {
+      setFormError(err.message);
+      showToast({ type: 'error', message: err.message || t('feedback.paymentRecordFailed') });
+    },
   });
 
   const reversePaymentMutation = useMutation({
@@ -77,22 +89,37 @@ export default function InvoiceDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoice', id] });
       queryClient.invalidateQueries({ queryKey: ['payments', id] });
+      setConfirmReversePayment(false);
+      setPaymentToReverse(null);
+      setReversalNotes('');
+      showToast({ type: 'success', message: t('feedback.paymentReversed') });
     },
-    onError: (err: Error) => setFormError(err.message),
+    onError: (err: Error) => {
+      setFormError(err.message);
+      showToast({ type: 'error', message: err.message || t('feedback.paymentReverseFailed') });
+    },
   });
 
   const replacementMutation = useMutation({
     mutationFn: (replacementData: CreateReplacementDto) =>
       invoicesService.createReplacement(id!, replacementData),
     onSuccess: (newInvoice) => {
+      setConfirmReplacement(false);
+      showToast({ type: 'success', message: t('feedback.invoiceReplaced') });
       navigate(`/invoices/${newInvoice.id}?returnTo=${encodeURIComponent(returnTo)}`);
     },
-    onError: (err: Error) => setFormError(err.message),
+    onError: (err: Error) => {
+      setFormError(err.message);
+      showToast({ type: 'error', message: err.message || t('feedback.invoiceReplacementFailed') });
+    },
   });
 
   const [showReplacementForm, setShowReplacementForm] = useState(false);
   const [reversalNotes, setReversalNotes] = useState('');
   const [paymentToReverse, setPaymentToReverse] = useState<string | null>(null);
+  const [confirmStatus, setConfirmStatus] = useState<'ISSUED' | 'VOID' | null>(null);
+  const [confirmReplacement, setConfirmReplacement] = useState(false);
+  const [confirmReversePayment, setConfirmReversePayment] = useState(false);
 
   const handleRecordPayment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -185,7 +212,7 @@ export default function InvoiceDetail() {
             <div className="flex gap-2">
               {invoice.status === 'DRAFT' && (
                 <button
-                  onClick={() => statusMutation.mutate('ISSUED')}
+                  onClick={() => setConfirmStatus('ISSUED')}
                   disabled={statusMutation.isPending}
                   className="px-4 py-2 bg-[#111844] text-white rounded-md hover:bg-[#1a237e] transition-colors disabled:opacity-50"
                 >
@@ -194,11 +221,7 @@ export default function InvoiceDetail() {
               )}
               {invoice.status !== 'VOID' && isAdmin && (
                 <button
-                  onClick={() => {
-                    if (window.confirm(t('invoices.voidConfirm'))) {
-                      statusMutation.mutate('VOID');
-                    }
-                  }}
+                  onClick={() => setConfirmStatus('VOID')}
                   disabled={statusMutation.isPending}
                   className="px-4 py-2 border border-[#C4362B] text-[#C4362B] rounded-md hover:bg-red-50 transition-colors disabled:opacity-50"
                 >
@@ -299,24 +322,7 @@ export default function InvoiceDetail() {
               {t('invoices.replacementNote')}
             </p>
             <button
-              onClick={() => {
-                if (window.confirm(t('invoices.replacementConfirm'))) {
-                  // Use current invoice items as basis for replacement
-                  const replacementItems = invoice.invoiceItems.map(item => ({
-                    serviceId: item.serviceId,
-                    quantity: item.quantity,
-                    unitPrice: parseFloat(item.unitPriceSnapshot),
-                  }));
-                  replacementMutation.mutate({ 
-                    items: replacementItems,
-                    additionalCharges: invoice.additionalCharges?.map(charge => ({
-                      chargeType: charge.chargeType,
-                      chargeValue: parseFloat(charge.chargeValue),
-                      description: charge.description || undefined,
-                    })) || []
-                  });
-                }
-              }}
+              onClick={() => setConfirmReplacement(true)}
               disabled={replacementMutation.isPending}
               className="px-4 py-2 bg-[#111844] text-white rounded-md hover:bg-[#1a237e] transition-colors disabled:opacity-50"
             >
@@ -420,14 +426,7 @@ export default function InvoiceDetail() {
                               className="px-2 py-1 border border-gray-300 rounded text-sm w-32"
                             />
                             <button
-                              onClick={() => {
-                                reversePaymentMutation.mutate({ 
-                                  paymentId: payment.id, 
-                                  reversalNotes: reversalNotes || undefined 
-                                });
-                                setPaymentToReverse(null);
-                                setReversalNotes('');
-                              }}
+                              onClick={() => setConfirmReversePayment(true)}
                               className="text-[#C4362B] hover:text-[#a32b22] text-sm font-medium"
                             >
                               {t('payments.confirmReversal')}
@@ -458,6 +457,65 @@ export default function InvoiceDetail() {
             </table>
           )}
         </div>
+
+        <ConfirmDialog
+          open={!!confirmStatus}
+          title={confirmStatus === 'ISSUED' ? t('invoices.issueInvoice') : t('invoices.voidInvoice')}
+          message={confirmStatus === 'ISSUED' ? t('invoices.issueConfirm') : t('invoices.voidConfirm')}
+          confirmLabel={t('common.confirm')}
+          cancelLabel={t('common.cancel')}
+          destructive={confirmStatus === 'VOID'}
+          loading={statusMutation.isPending}
+          onCancel={() => setConfirmStatus(null)}
+          onConfirm={() => {
+            if (confirmStatus) statusMutation.mutate(confirmStatus);
+          }}
+        />
+
+        <ConfirmDialog
+          open={confirmReplacement}
+          title={t('invoices.createReplacementTitle')}
+          message={t('invoices.replacementConfirm')}
+          confirmLabel={t('invoices.createReplacementBtn')}
+          cancelLabel={t('common.cancel')}
+          destructive
+          loading={replacementMutation.isPending}
+          onCancel={() => setConfirmReplacement(false)}
+          onConfirm={() => {
+            const replacementItems = invoice.invoiceItems.map((item) => ({
+              serviceId: item.serviceId,
+              quantity: item.quantity,
+              unitPrice: parseFloat(item.unitPriceSnapshot),
+            }));
+            replacementMutation.mutate({
+              items: replacementItems,
+              additionalCharges: invoice.additionalCharges?.map((charge) => ({
+                chargeType: charge.chargeType,
+                chargeValue: parseFloat(charge.chargeValue),
+                description: charge.description || undefined,
+              })) || [],
+            });
+          }}
+        />
+
+        <ConfirmDialog
+          open={confirmReversePayment && !!paymentToReverse}
+          title={t('payments.reversePayment')}
+          message={t('payments.reverseConfirm')}
+          confirmLabel={t('payments.confirmReversal')}
+          cancelLabel={t('common.cancel')}
+          destructive
+          loading={reversePaymentMutation.isPending}
+          onCancel={() => setConfirmReversePayment(false)}
+          onConfirm={() => {
+            if (paymentToReverse) {
+              reversePaymentMutation.mutate({
+                paymentId: paymentToReverse,
+                reversalNotes: reversalNotes || undefined,
+              });
+            }
+          }}
+        />
       </div>
     </div>
   );

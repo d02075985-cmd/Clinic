@@ -10,6 +10,9 @@ import { auditService } from '../services/audit.service';
 import { backupService, BackupStatus, BackupEntry } from '../services/backup.service';
 import { apiBaseUrl } from '../config/api';
 import { getAccessToken } from '../config/auth-token';
+import { useTranslation } from 'react-i18next';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useToast } from '../contexts/ToastContext';
 
 const APP_VERSION = 'v1.0.0';
 
@@ -127,6 +130,8 @@ export default function SettingsPage() {
 
 // ---------- النسخ الاحتياطي والاستعادة ----------
 function BackupSection() {
+  const { t } = useTranslation();
+  const { showToast } = useToast();
   const [status, setStatus] = useState<BackupStatus | null>(null);
   const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -156,8 +161,10 @@ function BackupSection() {
     try {
       await backupService.runBackup();
       await load();
+      showToast({ type: 'success', message: t('feedback.backupCreated') });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'فشل إنشاء النسخة الاحتياطية');
+      showToast({ type: 'error', message: err instanceof Error ? err.message : t('feedback.backupFailed') });
     } finally {
       setRunning(false);
     }
@@ -171,8 +178,10 @@ function BackupSection() {
       await backupService.restoreBackup(confirmRestore.filename);
       setConfirmRestore(null);
       await load();
+      showToast({ type: 'success', message: t('feedback.backupRestored') });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'فشل استعادة النسخة الاحتياطية');
+      showToast({ type: 'error', message: err instanceof Error ? err.message : t('feedback.restoreFailed') });
     } finally {
       setRestoring(false);
     }
@@ -241,24 +250,19 @@ function BackupSection() {
         </div>
       )}
 
-      {confirmRestore && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 px-4">
-          <div className="ui-card p-6 max-w-sm w-full">
-            <h3 className="font-bold text-[#C4362B] mb-2">تأكيد الاستعادة</h3>
-            <p className="text-sm text-[#64748B] mb-5">
-              هيتم استبدال كل البيانات الحالية بنسخة {new Date(confirmRestore.createdAt).toLocaleString('ar-KW')}.
-              هنعمل نسخة أمان من الوضع الحالي تلقائيًا قبل الاستعادة، لكن العملية دي مهمة وبتغيّر بيانات حقيقية. متأكدة؟
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setConfirmRestore(null)} disabled={restoring} className="px-4 py-2 rounded-[10px] border border-[#E2E8F0] text-sm text-[#64748B]">إلغاء</button>
-              <button onClick={handleRestore} disabled={restoring} className="btn-danger-outline px-4 py-2 text-sm flex items-center gap-2">
-                {restoring ? <Loader2 size={15} className="animate-spin" /> : null}
-                {restoring ? 'جارِ الاستعادة...' : 'تأكيد الاستعادة'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={!!confirmRestore}
+        title={t('settings.confirmRestoreTitle')}
+        message={confirmRestore ? t('settings.confirmRestoreBody', {
+          date: new Date(confirmRestore.createdAt).toLocaleString('ar-KW'),
+        }) : ''}
+        confirmLabel={restoring ? t('settings.restoring') : t('settings.confirmRestoreBtn')}
+        cancelLabel={t('common.cancel')}
+        destructive
+        loading={restoring}
+        onCancel={() => setConfirmRestore(null)}
+        onConfirm={handleRestore}
+      />
     </div>
   );
 }

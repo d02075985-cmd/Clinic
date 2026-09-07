@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import DateInput from '../components/DateInput';
 import { formatMoney, moneyToCents } from '../utils/money';
+import { useToast } from '../contexts/ToastContext';
 
 const COLORS = ['#102F63', '#173B78', '#4B5694', '#8991A6', '#C4362B', '#C98200'];
 
@@ -39,6 +40,7 @@ function KpiCard({ icon: Icon, label, value, suffix }: { icon: typeof TrendingUp
 export default function ReportsPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const PAYMENT_METHOD_LABELS: Record<string, string> = {
     CASH: t('payments.methodCash'), VISA: t('payments.methodVisa'), KNET: t('payments.methodKnet'), OTHER: t('payments.methodOther'),
@@ -72,8 +74,10 @@ export default function ReportsPage() {
     setExportingPdf(true);
     try {
       await reportsService.downloadExport('pdf', from, to);
+      showToast({ type: 'success', message: t('feedback.reportExported') });
     } catch (err) {
       console.error('Failed to export PDF report:', err);
+      showToast({ type: 'error', message: err instanceof Error ? err.message : t('reports.exportError') });
     } finally {
       setExportingPdf(false);
     }
@@ -83,8 +87,10 @@ export default function ReportsPage() {
     setExportingExcel(true);
     try {
       await reportsService.downloadExport('excel', from, to);
+      showToast({ type: 'success', message: t('feedback.reportExported') });
     } catch (err) {
       console.error('Failed to export Excel report:', err);
+      showToast({ type: 'error', message: err instanceof Error ? err.message : t('reports.exportError') });
     } finally {
       setExportingExcel(false);
     }

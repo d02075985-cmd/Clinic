@@ -45,8 +45,38 @@
     "showPassword": "Show password",
     "hidePassword": "Hide password",
     "markAllRead": "Mark all read",
-    "noNotifications": "No notifications"
-    ,"breadcrumb": "Breadcrumb"
+    "noNotifications": "No notifications",
+    "breadcrumb": "Breadcrumb",
+    "confirm": "Confirm"
+  },
+  "feedback": {
+    "notifications": "Notifications",
+    "patientCreated": "Patient created successfully.",
+    "patientUpdated": "Patient updated successfully.",
+    "visitCreated": "Visit created successfully.",
+    "appointmentCreated": "Appointment created successfully.",
+    "appointmentStatusUpdated": "Appointment status updated successfully.",
+    "appointmentStatusFailed": "Failed to update appointment status.",
+    "appointmentCancelled": "Appointment cancelled successfully.",
+    "appointmentCancelFailed": "Failed to cancel appointment.",
+    "serviceCreated": "Service created successfully.",
+    "serviceUpdated": "Service updated successfully.",
+    "serviceDeactivated": "Service deactivated successfully.",
+    "serviceActivated": "Service activated successfully.",
+    "serviceStatusFailed": "Failed to update service status.",
+    "invoiceStatusUpdated": "Invoice status updated successfully.",
+    "invoiceStatusFailed": "Failed to update invoice status.",
+    "paymentRecorded": "Payment recorded successfully.",
+    "paymentRecordFailed": "Failed to record payment.",
+    "paymentReversed": "Payment reversed successfully.",
+    "paymentReverseFailed": "Failed to reverse payment.",
+    "invoiceReplaced": "Replacement invoice created successfully.",
+    "invoiceReplacementFailed": "Failed to create replacement invoice.",
+    "reportExported": "Report exported successfully.",
+    "backupCreated": "Backup created successfully.",
+    "backupFailed": "Failed to create backup.",
+    "backupRestored": "Backup restored successfully.",
+    "restoreFailed": "Failed to restore backup."
   },
   "roles": {
     "admin": "Admin",
@@ -251,6 +281,7 @@
     "downloading": "Downloading...",
     "downloadPdf": "Download PDF",
     "issueInvoice": "Issue Invoice",
+    "issueConfirm": "Issuing this invoice will finalize it. Continue?",
     "voidConfirm": "Are you sure you want to void this invoice?",
     "voidInvoice": "Void Invoice",
     "createdDate": "Created Date",
@@ -294,6 +325,7 @@
     "reversePayment": "Reverse Payment",
     "reversalReasonPlaceholder": "Reversal reason",
     "confirmReversal": "Confirm"
+    ,"reverseConfirm": "This payment will be reversed and excluded from the invoice balance. Continue?"
   },
   "appointments": {
     "loadError": "Failed to load appointment data",

@@ -5,6 +5,7 @@ import { appointmentsService, UpdateStatusDto, CancelAppointmentDto } from '../s
 import { useTranslation } from 'react-i18next';
 import Breadcrumb from '../components/Breadcrumb';
 import { getReturnTo, preserveListState } from '../utils/listState';
+import { useToast } from '../contexts/ToastContext';
 
 export default function AppointmentDetail() {
   const { id } = useParams<{ id: string }>();
@@ -12,6 +13,7 @@ export default function AppointmentDetail() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const returnTo = getReturnTo(searchParams.toString(), '/appointments');
+  const { showToast } = useToast();
   const queryClient = useQueryClient();
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
@@ -29,6 +31,10 @@ export default function AppointmentDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointment', id] });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      showToast({ type: 'success', message: t('feedback.appointmentStatusUpdated') });
+    },
+    onError: (error: Error) => {
+      showToast({ type: 'error', message: error.message || t('feedback.appointmentStatusFailed') });
     },
   });
 
@@ -41,6 +47,10 @@ export default function AppointmentDetail() {
       setCancelReasonType('');
       queryClient.invalidateQueries({ queryKey: ['appointment', id] });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      showToast({ type: 'success', message: t('feedback.appointmentCancelled') });
+    },
+    onError: (error: Error) => {
+      showToast({ type: 'error', message: error.message || t('feedback.appointmentCancelFailed') });
     },
   });
 

@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import DateInput from '../components/DateInput';
 import Breadcrumb from '../components/Breadcrumb';
 import { getReturnTo } from '../utils/listState';
+import { useToast } from '../contexts/ToastContext';
 
 interface PatientFormProps {
   patientId?: string;
@@ -16,6 +17,7 @@ export default function PatientForm({ patientId }: PatientFormProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = getReturnTo(searchParams.toString(), '/patients');
+  const { showToast } = useToast();
   const [formData, setFormData] = useState<CreatePatientDto | UpdatePatientDto>({
     civilId: '',
     fullNameAr: '',
@@ -50,9 +52,11 @@ export default function PatientForm({ patientId }: PatientFormProps) {
   const createMutation = useMutation({
     mutationFn: (data: CreatePatientDto) => patientsService.createPatient(data),
     onSuccess: (data) => {
+      showToast({ type: 'success', message: t('feedback.patientCreated') });
       navigate(`/patients/${data.id}?returnTo=${encodeURIComponent(returnTo)}`);
     },
     onError: (error: Error) => {
+      showToast({ type: 'error', message: error.message || t('patients.createError') });
       setErrors({ general: error.message || t('patients.createError') });
     },
   });
@@ -61,9 +65,11 @@ export default function PatientForm({ patientId }: PatientFormProps) {
     mutationFn: ({ id, data }: { id: string; data: UpdatePatientDto }) =>
       patientsService.updatePatient(id, data),
     onSuccess: (data) => {
+      showToast({ type: 'success', message: t('feedback.patientUpdated') });
       navigate(`/patients/${data.id}?returnTo=${encodeURIComponent(returnTo)}`);
     },
     onError: (error: Error) => {
+      showToast({ type: 'error', message: error.message || t('patients.updateError') });
       setErrors({ general: error.message || t('patients.updateError') });
     },
   });

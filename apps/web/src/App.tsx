@@ -21,6 +21,7 @@ import ReportsPage from './pages/ReportsPage'
 import DailyClosingPage from './pages/DailyClosingPage'
 import SettingsPage from './pages/SettingsPage'
 import ProtectedRoute from './components/ProtectedRoute'
+import { ToastProvider } from './contexts/ToastContext'
 
 const queryClient = new QueryClient()
 
@@ -29,7 +30,8 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <BrowserRouter>
-          <Routes>
+          <ToastProvider>
+            <Routes>
             <Route path="/login" element={<Login />} />
             <Route
               path="/dashboard"
@@ -192,7 +194,8 @@ function App() {
               }
             />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
+            </Routes>
+          </ToastProvider>
         </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>
@@ -200,4 +203,3 @@ function App() {
 }
 
 export default App
-

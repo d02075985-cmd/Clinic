@@ -7,6 +7,8 @@ import { servicesService, Service } from '../services/services.service';
 import { useTranslation } from 'react-i18next';
 import { formatDate } from '../utils/dateFormat';
 import { formatMoney } from '../utils/money';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useToast } from '../contexts/ToastContext';
 
 export default function ServicesList() {
   const { t, i18n } = useTranslation();
@@ -20,6 +22,7 @@ export default function ServicesList() {
 
   const isAdmin = user?.role === 'ADMIN';
 
+  const { showToast } = useToast();
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['services', search, isActiveFilter, page],
     queryFn: () => servicesService.getServices(search, isActiveFilter, page, limit),
@@ -33,8 +36,10 @@ export default function ServicesList() {
       await servicesService.updateServiceStatus(service.id, { isActive: !service.isActive });
       setConfirmDeactivate(null);
       refetch();
+      showToast({ type: 'success', message: service.isActive ? t('feedback.serviceDeactivated') : t('feedback.serviceActivated') });
     } catch (err) {
       console.error('Failed to update service status:', err);
+      showToast({ type: 'error', message: err instanceof Error ? err.message : t('feedback.serviceStatusFailed') });
     }
   };
 
@@ -191,34 +196,20 @@ export default function ServicesList() {
         </div>
       )}
 
-      {confirmDeactivate && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 px-4">
-          <div className="ui-card p-6 max-w-sm w-full">
-            <h3 className="font-bold text-[#102F63] mb-2">
-              {confirmDeactivate.isActive ? t('services.deactivateService') : t('services.activateService')}
-            </h3>
-            <p className="text-sm text-[#64748B] mb-5">
-              {confirmDeactivate.isActive
-                ? t('services.deactivateConfirm', { name: confirmDeactivate.name })
-                : t('services.activateConfirm', { name: confirmDeactivate.name })}
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setConfirmDeactivate(null)}
-                className="px-4 py-2 rounded-[10px] border border-[#E2E8F0] text-sm text-[#64748B]"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={() => handleToggleStatus(confirmDeactivate)}
-                className={confirmDeactivate.isActive ? 'btn-danger-outline px-4 py-2 text-sm' : 'btn-primary px-4 py-2 text-sm'}
-              >
-                {confirmDeactivate.isActive ? t('common.deactivate') : t('common.activate')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={!!confirmDeactivate}
+        title={confirmDeactivate?.isActive ? t('services.deactivateService') : t('services.activateService')}
+        message={confirmDeactivate
+          ? (confirmDeactivate.isActive
+            ? t('services.deactivateConfirm', { name: confirmDeactivate.name })
+            : t('services.activateConfirm', { name: confirmDeactivate.name }))
+          : ''}
+        confirmLabel={confirmDeactivate?.isActive ? t('common.deactivate') : t('common.activate')}
+        cancelLabel={t('common.cancel')}
+        destructive={!!confirmDeactivate?.isActive}
+        onCancel={() => setConfirmDeactivate(null)}
+        onConfirm={() => confirmDeactivate && handleToggleStatus(confirmDeactivate)}
+      />
     </div>
   );
 }

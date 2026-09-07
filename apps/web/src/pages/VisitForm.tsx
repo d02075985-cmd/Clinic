@@ -7,6 +7,7 @@ import { appointmentsService } from '../services/appointments.service';
 import { useTranslation } from 'react-i18next';
 import Breadcrumb from '../components/Breadcrumb';
 import { getReturnTo } from '../utils/listState';
+import { useToast } from '../contexts/ToastContext';
 
 export default function VisitForm() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export default function VisitForm() {
   const prefillPatientId = searchParams.get('patientId') || '';
   const prefillAppointmentId = searchParams.get('appointmentId') || '';
   const returnTo = getReturnTo(searchParams.toString(), prefillPatientId ? `/patients/${prefillPatientId}` : '/visits');
+  const { showToast } = useToast();
 
   const [formData, setFormData] = useState<CreateVisitDto>({
     patientId: prefillPatientId,
@@ -55,9 +57,11 @@ export default function VisitForm() {
   const createMutation = useMutation({
     mutationFn: (data: CreateVisitDto) => visitsService.createVisit(data),
     onSuccess: (data) => {
+      showToast({ type: 'success', message: t('feedback.visitCreated') });
       navigate(`/patients/${data.patientId}?returnTo=${encodeURIComponent(returnTo)}`);
     },
     onError: (error: Error) => {
+      showToast({ type: 'error', message: error.message || t('visits.createError') });
       setErrors({ general: error.message || 'فشل في إنشاء الزيارة' });
     },
   });

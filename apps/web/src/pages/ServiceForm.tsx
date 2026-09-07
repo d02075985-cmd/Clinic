@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { moneyToCents, normalizeMoneyInput } from '../utils/money';
 import Breadcrumb from '../components/Breadcrumb';
 import { getReturnTo } from '../utils/listState';
+import { useToast } from '../contexts/ToastContext';
 
 export default function ServiceForm() {
   const { t } = useTranslation();
@@ -13,6 +14,7 @@ export default function ServiceForm() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = getReturnTo(searchParams.toString(), '/services');
+  const { showToast } = useToast();
   const isEdit = !!id;
 
   const [formData, setFormData] = useState<CreateServiceDto | UpdateServiceDto>({
@@ -48,9 +50,11 @@ export default function ServiceForm() {
   const createMutation = useMutation({
     mutationFn: (data: CreateServiceDto) => servicesService.createService(data),
     onSuccess: () => {
+      showToast({ type: 'success', message: t('feedback.serviceCreated') });
       navigate(returnTo);
     },
     onError: (error: Error) => {
+      showToast({ type: 'error', message: error.message || t('services.createError') });
       setErrors({ general: error.message || t('services.createError') });
     },
   });
@@ -59,9 +63,11 @@ export default function ServiceForm() {
     mutationFn: (data: { id: string; dto: UpdateServiceDto }) =>
       servicesService.updateService(data.id, data.dto),
     onSuccess: () => {
+      showToast({ type: 'success', message: t('feedback.serviceUpdated') });
       navigate(returnTo);
     },
     onError: (error: Error) => {
+      showToast({ type: 'error', message: error.message || t('services.updateError') });
       setErrors({ general: error.message || t('services.updateError') });
     },
   });

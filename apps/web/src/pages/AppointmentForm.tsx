@@ -8,12 +8,14 @@ import DateInput from '../components/DateInput';
 import TimeInput from '../components/TimeInput';
 import Breadcrumb from '../components/Breadcrumb';
 import { getReturnTo } from '../utils/listState';
+import { useToast } from '../contexts/ToastContext';
 
 export default function AppointmentForm() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = getReturnTo(searchParams.toString(), '/appointments');
+  const { showToast } = useToast();
   const [formData, setFormData] = useState<CreateAppointmentDto>({
     patientId: '',
     scheduledAt: '',
@@ -35,9 +37,11 @@ export default function AppointmentForm() {
   const createMutation = useMutation({
     mutationFn: (data: CreateAppointmentDto) => appointmentsService.createAppointment(data),
     onSuccess: (data) => {
+      showToast({ type: 'success', message: t('feedback.appointmentCreated') });
       navigate(`/appointments/${data.id}?returnTo=${encodeURIComponent(returnTo)}`);
     },
     onError: (error: Error) => {
+      showToast({ type: 'error', message: error.message || t('appointments.createError') });
       setErrors({ general: error.message || t('appointments.createError') });
     },
   });
