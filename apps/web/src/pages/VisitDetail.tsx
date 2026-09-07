@@ -1,15 +1,20 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, User, Phone, IdCard, Calendar, Stethoscope, FileText, ReceiptText } from 'lucide-react';
 import { visitsService, VisitStatus } from '../services/visits.service';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '../utils/dateFormat';
 import { formatMoney } from '../utils/money';
+import Breadcrumb from '../components/Breadcrumb';
+import { getReturnTo } from '../utils/listState';
+import { preserveListState } from '../utils/listState';
 
 export default function VisitDetail() {
   const { t, i18n } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = getReturnTo(searchParams.toString(), '/visits');
 
   const STATUS_LABELS: Record<VisitStatus, string> = {
     SCHEDULED: t('visits.statusScheduled'),
@@ -58,7 +63,8 @@ export default function VisitDetail() {
 
   return (
     <div className="page-container">
-      <button onClick={() => navigate('/visits')} className="flex items-center gap-1.5 text-sm text-[#64748B] hover:text-[#102F63] mb-4">
+      <Breadcrumb items={[{ label: t('sidebar.visits'), href: returnTo }, { label: t('visits.detailsTitle') }]} />
+      <button onClick={() => navigate(returnTo)} className="flex items-center gap-1.5 text-sm text-[#64748B] hover:text-[#102F63] mb-4">
         <ArrowRight size={16} strokeWidth={1.75} />
         {t('visits.backToVisits')}
       </button>
@@ -83,7 +89,12 @@ export default function VisitDetail() {
             <div className="flex items-center gap-2">
               <User size={15} strokeWidth={1.75} className="text-[#94A3B8]" />
               <span className="text-[#64748B]">{t('visits.nameLabel')}</span>
-              <span className="font-medium text-[#1F2430]">{visit.patient.fullNameAr}</span>
+              <Link
+                to={preserveListState(`/patients/${visit.patient.id}`, { pathname: `/visits/${visit.id}`, search: '' })}
+                className="font-medium text-[#1F2430] hover:text-[#102F63] hover:underline"
+              >
+                {visit.patient.fullNameAr}
+              </Link>
             </div>
             <div className="flex items-center gap-2">
               <IdCard size={15} strokeWidth={1.75} className="text-[#94A3B8]" />
@@ -157,7 +168,12 @@ export default function VisitDetail() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
               <div>
                 <div className="text-[#94A3B8] text-xs mb-1">{t('invoices.number')}</div>
-                <div className="font-medium text-[#1F2430]">{invoice.invoiceNumber}</div>
+                <Link
+                  to={preserveListState(`/invoices/${invoice.id}`, { pathname: `/visits/${visit.id}`, search: '' })}
+                  className="font-medium text-[#1F2430] hover:text-[#102F63] hover:underline"
+                >
+                  {invoice.invoiceNumber}
+                </Link>
               </div>
               <div>
                 <div className="text-[#94A3B8] text-xs mb-1">{t('invoices.total')}</div>
@@ -176,7 +192,7 @@ export default function VisitDetail() {
               <span className="ui-badge" style={{ background: 'rgba(23,59,120,0.08)', color: 'var(--brand-blue)' }}>
                 {PAYMENT_STATUS_LABELS[invoice.paymentStatus]}
               </span>
-              <button onClick={() => navigate(`/invoices/${invoice.id}`)} className="btn-primary flex items-center gap-2 px-4 py-2 text-sm">
+              <button onClick={() => navigate(preserveListState(`/invoices/${invoice.id}`, { pathname: `/visits/${visit.id}`, search: '' }))} className="btn-primary flex items-center gap-2 px-4 py-2 text-sm">
                 <ReceiptText size={16} strokeWidth={1.75} />
                 {t('visits.viewInvoiceBtn')}
               </button>

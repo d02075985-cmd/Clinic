@@ -1,11 +1,17 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appointmentsService, UpdateStatusDto, CancelAppointmentDto } from '../services/appointments.service';
+import { useTranslation } from 'react-i18next';
+import Breadcrumb from '../components/Breadcrumb';
+import { getReturnTo, preserveListState } from '../utils/listState';
 
 export default function AppointmentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
+  const returnTo = getReturnTo(searchParams.toString(), '/appointments');
   const queryClient = useQueryClient();
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
@@ -109,20 +115,13 @@ export default function AppointmentDetail() {
   return (
     <div className="min-h-screen bg-[#F6F7FA] dir-rtl">
       <div className="container mx-auto px-4 py-8">
-        {/* Breadcrumb */}
-        <div className="mb-6 text-sm text-gray-600">
-          <button onClick={() => navigate('/appointments')} className="hover:text-[#111844]">
-            المواعيد
-          </button>
-          <span className="mx-2">/</span>
-          <span className="text-gray-900">تفاصيل الموعد</span>
-        </div>
+        <Breadcrumb items={[{ label: t('sidebar.appointments'), href: returnTo }, { label: t('appointments.detailsTitle') }]} />
 
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-[#111844]">تفاصيل الموعد</h1>
           <button
-            onClick={() => navigate('/appointments')}
+            onClick={() => navigate(returnTo)}
             className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
           >
             عودة
@@ -234,12 +233,12 @@ export default function AppointmentDetail() {
                   </button>
                 )}
 
-                <button
-                  onClick={() => navigate(`/patients/${appointment.patient.id}`)}
+                <Link
+                  to={preserveListState(`/patients/${appointment.patient.id}`, { pathname: `/appointments/${appointment.id}`, search: '' })}
                   className="w-full py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
                 >
                   عرض الملف الطبي
-                </button>
+                </Link>
               </div>
             </div>
           </div>

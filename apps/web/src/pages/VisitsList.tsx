@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Eye, ReceiptText, CheckCircle2, Plus } from 'lucide-react';
 import { visitsService, VisitStatus } from '../services/visits.service';
 import { useTranslation } from 'react-i18next';
 import { formatDate, formatTime } from '../utils/dateFormat';
 import DateInput from '../components/DateInput';
+import Breadcrumb from '../components/Breadcrumb';
+import { preserveListState } from '../utils/listState';
 
 function statusBadgeStyle(status: VisitStatus) {
   switch (status) {
@@ -23,11 +25,13 @@ function statusBadgeStyle(status: VisitStatus) {
 export default function VisitsList() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<VisitStatus | ''>('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
-  const [page, setPage] = useState(1);
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get('search') || '');
+  const [statusFilter, setStatusFilter] = useState<VisitStatus | ''>((searchParams.get('status') as VisitStatus) || '');
+  const [typeFilter, setTypeFilter] = useState(searchParams.get('type') || '');
+  const [dateFilter, setDateFilter] = useState(searchParams.get('date') || '');
+  const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
   const limit = 20;
 
   const STATUS_LABELS: Record<VisitStatus, string> = {
@@ -78,6 +82,7 @@ export default function VisitsList() {
 
   return (
     <div className="page-container">
+      <Breadcrumb items={[{ label: t('sidebar.visits') }]} />
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-[26px] font-bold text-[#102F63]">{t('sidebar.visits')}</h1>
@@ -112,18 +117,18 @@ export default function VisitsList() {
           <input
             type="text"
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); setSearchParams((current) => { current.set('search', e.target.value); current.set('page', '1'); return current; }); }}
             placeholder={t('visits.searchPlaceholder')}
             className="ui-input pr-10"
           />
         </div>
         <DateInput
           value={dateFilter}
-          onChange={(v) => { setDateFilter(v); setPage(1); }}
+          onChange={(v) => { setDateFilter(v); setPage(1); setSearchParams((current) => { if (v) current.set('date', v); else current.delete('date'); current.set('page', '1'); return current; }); }}
           className="ui-input w-auto"
           isClearable
         />
-        <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }} className="ui-input w-auto">
+        <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); setSearchParams((current) => { if (e.target.value) current.set('type', e.target.value); else current.delete('type'); current.set('page', '1'); return current; }); }} className="ui-input w-auto">
           <option value="">{t('visits.allTypes')}</option>
           <option value="CHECKUP">{t('visits.typeCheckup')}</option>
           <option value="FOLLOW_UP">{t('visits.typeFollowUp')}</option>
@@ -131,7 +136,7 @@ export default function VisitsList() {
         </select>
         <select
           value={statusFilter}
-          onChange={(e) => { setStatusFilter(e.target.value as VisitStatus | ''); setPage(1); }}
+          onChange={(e) => { setStatusFilter(e.target.value as VisitStatus | ''); setPage(1); setSearchParams((current) => { if (e.target.value) current.set('status', e.target.value); else current.delete('status'); current.set('page', '1'); return current; }); }}
           className="ui-input w-auto"
         >
           <option value="">{t('common.allStatuses')}</option>
@@ -197,11 +202,11 @@ export default function VisitsList() {
                   </td>
                   <td>
                     <div className="flex items-center gap-1.5">
-                      <button onClick={() => navigate(`/visits/${visit.id}`)} aria-label={t('visits.viewDetails')} className="icon-btn">
+                      <button onClick={() => navigate(preserveListState(`/visits/${visit.id}`, location))} aria-label={t('visits.viewDetails')} className="icon-btn">
                         <Eye size={16} strokeWidth={1.75} />
                       </button>
                       {invoice && (
-                        <button onClick={() => navigate(`/invoices/${invoice.id}`)} aria-label={t('visits.viewInvoice')} className="icon-btn">
+                        <button onClick={() => navigate(preserveListState(`/invoices/${invoice.id}`, location))} aria-label={t('visits.viewInvoice')} className="icon-btn">
                           <ReceiptText size={16} strokeWidth={1.75} />
                         </button>
                       )}
@@ -230,11 +235,11 @@ export default function VisitsList() {
               </span>
               {meta.totalPages > 1 && (
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1.5 rounded-md border border-[#E2E8F0] text-sm disabled:opacity-40">
+                  <button onClick={() => setPage((p) => { const next = Math.max(1, p - 1); setSearchParams((current) => { current.set('page', String(next)); return current; }); return next; })} disabled={page === 1} className="px-3 py-1.5 rounded-md border border-[#E2E8F0] text-sm disabled:opacity-40">
                     {t('common.previous')}
                   </button>
                   <span className="text-sm text-[#102F63] font-medium">{meta.page} / {meta.totalPages}</span>
-                  <button onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))} disabled={page === meta.totalPages} className="px-3 py-1.5 rounded-md border border-[#E2E8F0] text-sm disabled:opacity-40">
+                  <button onClick={() => setPage((p) => { const next = Math.min(meta.totalPages, p + 1); setSearchParams((current) => { current.set('page', String(next)); return current; }); return next; })} disabled={page === meta.totalPages} className="px-3 py-1.5 rounded-md border border-[#E2E8F0] text-sm disabled:opacity-40">
                     {t('common.next')}
                   </button>
                 </div>

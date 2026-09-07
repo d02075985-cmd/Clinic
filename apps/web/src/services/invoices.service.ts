@@ -38,6 +38,7 @@ export interface Invoice {
   invoiceItems: InvoiceItem[];
   additionalCharges?: AdditionalCharge[];
   replacedByInvoiceId?: string | null;
+  replacedInvoiceId?: string | null;
   patient: {
     id: string;
     civilId: string;

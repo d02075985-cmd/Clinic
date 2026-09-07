@@ -46,6 +46,7 @@
     "hidePassword": "إخفاء كلمة المرور",
     "markAllRead": "تحديد الكل كمقروء",
     "noNotifications": "لا توجد إشعارات"
+    ,"breadcrumb": "مسار التنقل"
   },
   "roles": {
     "admin": "مدير النظام",
@@ -270,7 +271,9 @@
     "createReplacementTitle": "إنشاء فاتورة بديلة",
     "replacementNote": "سيتم إلغاء الفاتورة الحالية وإنشاء فاتورة بديلة جديدة.",
     "replacementConfirm": "هل أنت متأكد من إنشاء فاتورة بديلة؟",
-    "createReplacementBtn": "إنشاء فاتورة بديلة"
+    "createReplacementBtn": "إنشاء فاتورة بديلة",
+    "replacementInvoice": "عرض الفاتورة البديلة",
+    "replacedInvoice": "عرض الفاتورة الأصلية"
   },
   "payments": {
     "methodCash": "نقداً",

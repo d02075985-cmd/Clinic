@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { invoicesService, CreateReplacementDto } from '../services/invoices.service';
@@ -7,11 +7,16 @@ import { paymentsService, PaymentMethod } from '../services/payments.service';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '../utils/dateFormat';
 import { formatMoney, moneyToCents, normalizeMoneyInput } from '../utils/money';
+import Breadcrumb from '../components/Breadcrumb';
+import { getReturnTo } from '../utils/listState';
+import { preserveListState } from '../utils/listState';
 
 export default function InvoiceDetail() {
   const { t, i18n } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = getReturnTo(searchParams.toString(), '/invoices');
 
   const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
     CASH: t('payments.methodCash'),
@@ -80,7 +85,7 @@ export default function InvoiceDetail() {
     mutationFn: (replacementData: CreateReplacementDto) =>
       invoicesService.createReplacement(id!, replacementData),
     onSuccess: (newInvoice) => {
-      navigate(`/invoices/${newInvoice.id}`);
+      navigate(`/invoices/${newInvoice.id}?returnTo=${encodeURIComponent(returnTo)}`);
     },
     onError: (err: Error) => setFormError(err.message),
   });
@@ -127,11 +132,12 @@ export default function InvoiceDetail() {
     <div className="min-h-screen bg-[#F6F7FA]">
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         <button
-          onClick={() => navigate('/invoices')}
+          onClick={() => navigate(returnTo)}
           className="text-[#4B5694] hover:text-[#111844] text-sm mb-4"
         >
           ← {t('invoices.backToInvoices')}
         </button>
+        <Breadcrumb items={[{ label: t('sidebar.invoices'), href: returnTo }, { label: invoice.invoiceNumber }]} />
 
         {formError && (
           <div
@@ -148,7 +154,33 @@ export default function InvoiceDetail() {
           <div className="flex justify-between items-start mb-4">
             <div>
               <h1 className="text-2xl font-bold text-[#111844]">{invoice.invoiceNumber}</h1>
-              <p className="text-gray-600">{invoice.patient.fullNameAr}</p>
+              <Link
+                to={preserveListState(`/patients/${invoice.patient.id}`, { pathname: `/invoices/${invoice.id}`, search: '' })}
+                className="text-gray-600 hover:text-[#111844] hover:underline"
+              >
+                {invoice.patient.fullNameAr}
+              </Link>
+              {invoice.visit && (
+                <Link
+                  to={preserveListState(`/visits/${invoice.visit.id}`, { pathname: `/invoices/${invoice.id}`, search: '' })}
+                  className="block text-sm text-[#4B5694] hover:underline mt-1"
+                >
+                  {t('visits.detailsTitle')}
+                </Link>
+              )}
+              {(invoice.replacedByInvoiceId || invoice.replacedInvoiceId) && (
+                <div className="mt-2 text-sm">
+                  {invoice.replacedByInvoiceId ? (
+                    <button onClick={() => navigate(`/invoices/${invoice.replacedByInvoiceId}?returnTo=${encodeURIComponent(returnTo)}`)} className="text-[#4B5694] hover:underline">
+                      {t('invoices.replacementInvoice')}
+                    </button>
+                  ) : (
+                    <button onClick={() => navigate(`/invoices/${invoice.replacedInvoiceId}?returnTo=${encodeURIComponent(returnTo)}`)} className="text-[#4B5694] hover:underline">
+                      {t('invoices.replacedInvoice')}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
             <div className="flex gap-2">
               {invoice.status === 'DRAFT' && (

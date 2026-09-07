@@ -1,19 +1,24 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { invoicesService, Invoice } from '../services/invoices.service';
 import { useTranslation } from 'react-i18next';
 import { formatDate as formatDateUtil } from '../utils/dateFormat';
 import { formatMoney } from '../utils/money';
+import Breadcrumb from '../components/Breadcrumb';
+import { preserveListState } from '../utils/listState';
 
 export default function InvoicesList() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || '');
+  const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['invoices', statusFilter],
-    queryFn: () => invoicesService.getInvoices(undefined, statusFilter || undefined, 1, 50),
+    queryFn: () => invoicesService.getInvoices(undefined, statusFilter || undefined, page, 50),
   });
 
   const invoices = data?.data || [];
@@ -50,6 +55,7 @@ export default function InvoicesList() {
     return (
       <div className="min-h-screen bg-[#F6F7FA]">
         <div className="container mx-auto px-4 py-8">
+          <Breadcrumb items={[{ label: t('sidebar.invoices') }]} />
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
             <div className="h-12 bg-gray-200 rounded mb-4"></div>
@@ -79,6 +85,7 @@ export default function InvoicesList() {
   return (
     <div className="min-h-screen bg-[#F6F7FA]">
       <div className="container mx-auto px-4 py-8">
+        <Breadcrumb items={[{ label: t('sidebar.invoices') }]} />
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-[#111844]">{t('sidebar.invoices')}</h1>
         </div>
@@ -87,7 +94,7 @@ export default function InvoicesList() {
           <div className="flex flex-wrap gap-4 items-center">
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); setSearchParams((current) => { if (e.target.value) current.set('status', e.target.value); else current.delete('status'); current.set('page', '1'); return current; }); }}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844]"
             >
               <option value="">{t('common.allStatuses')}</option>
@@ -96,7 +103,7 @@ export default function InvoicesList() {
               <option value="VOID">{t('invoices.statusVoid')}</option>
             </select>
             <button
-              onClick={() => setStatusFilter('')}
+              onClick={() => { setStatusFilter(''); setPage(1); setSearchParams((current) => { current.delete('status'); current.set('page', '1'); return current; }); }}
               className="px-3 py-2 text-gray-600 hover:text-gray-900"
             >
               {t('common.clearFilters')}
@@ -124,7 +131,7 @@ export default function InvoicesList() {
                 {invoices.map((invoice) => (
                   <tr
                     key={invoice.id}
-                    onClick={() => navigate(`/invoices/${invoice.id}`)}
+                    onClick={() => navigate(preserveListState(`/invoices/${invoice.id}`, location))}
                     className="hover:bg-gray-50 cursor-pointer"
                   >
                     <td className="px-6 py-4 font-medium text-gray-900">{invoice.invoiceNumber}</td>
@@ -142,6 +149,13 @@ export default function InvoicesList() {
                 ))}
               </tbody>
             </table>
+          )}
+          {data?.meta && data.meta.totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-gray-200 px-6 py-4">
+              <button onClick={() => setPage((currentPage) => { const next = Math.max(1, currentPage - 1); setSearchParams((current) => { current.set('page', String(next)); return current; }); return next; })} disabled={page === 1} className="px-3 py-1.5 rounded border disabled:opacity-40">{t('common.previous')}</button>
+              <span className="text-sm">{page} / {data.meta.totalPages}</span>
+              <button onClick={() => setPage((currentPage) => { const next = Math.min(data.meta.totalPages, currentPage + 1); setSearchParams((current) => { current.set('page', String(next)); return current; }); return next; })} disabled={page === data.meta.totalPages} className="px-3 py-1.5 rounded border disabled:opacity-40">{t('common.next')}</button>
+            </div>
           )}
         </div>
       </div>

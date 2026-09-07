@@ -6,6 +6,8 @@ import { servicesService } from '../services/services.service';
 import { invoicesService, CreateInvoiceDto } from '../services/invoices.service';
 import { useTranslation } from 'react-i18next';
 import { centsToMoney, formatMoney, moneyToCents, normalizeMoneyInput, roundDivide } from '../utils/money';
+import Breadcrumb from '../components/Breadcrumb';
+import { getReturnTo } from '../utils/listState';
 
 interface LineItem {
   serviceId: string;
@@ -24,6 +26,7 @@ export default function InvoiceForm() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const visitId = searchParams.get('visitId') || '';
+  const returnTo = getReturnTo(searchParams.toString(), visitId ? `/visits/${visitId}` : '/invoices');
 
   const [items, setItems] = useState<LineItem[]>([{ serviceId: '', quantity: 1, unitPrice: null }]);
   const [additionalCharges, setAdditionalCharges] = useState<AdditionalCharge[]>([]);
@@ -55,7 +58,7 @@ export default function InvoiceForm() {
   const createMutation = useMutation({
     mutationFn: (data: CreateInvoiceDto) => invoicesService.createInvoice(data),
     onSuccess: (invoice) => {
-      navigate(`/invoices/${invoice.id}`);
+      navigate(`/invoices/${invoice.id}?returnTo=${encodeURIComponent(returnTo)}`);
     },
     onError: (err: Error) => {
       setError(err.message);
@@ -171,6 +174,7 @@ export default function InvoiceForm() {
   return (
     <div className="min-h-screen bg-[#F6F7FA]">
       <div className="container mx-auto px-4 py-8 max-w-2xl">
+        <Breadcrumb items={[{ label: t('sidebar.invoices'), href: returnTo }, { label: t('invoices.newInvoice') }]} />
         <h1 className="text-3xl font-bold text-[#111844] mb-6">{t('invoices.newInvoice')}</h1>
 
         {visit && (
@@ -342,7 +346,7 @@ export default function InvoiceForm() {
             </button>
             <button
               type="button"
-              onClick={() => navigate(-1)}
+              onClick={() => navigate(returnTo)}
               className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
             >
               {t('common.cancel')}

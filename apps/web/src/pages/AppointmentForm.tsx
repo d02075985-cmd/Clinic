@@ -1,15 +1,19 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { appointmentsService, CreateAppointmentDto } from '../services/appointments.service';
 import { patientsService } from '../services/patients.service';
 import { useTranslation } from 'react-i18next';
 import DateInput from '../components/DateInput';
 import TimeInput from '../components/TimeInput';
+import Breadcrumb from '../components/Breadcrumb';
+import { getReturnTo } from '../utils/listState';
 
 export default function AppointmentForm() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = getReturnTo(searchParams.toString(), '/appointments');
   const [formData, setFormData] = useState<CreateAppointmentDto>({
     patientId: '',
     scheduledAt: '',
@@ -31,7 +35,7 @@ export default function AppointmentForm() {
   const createMutation = useMutation({
     mutationFn: (data: CreateAppointmentDto) => appointmentsService.createAppointment(data),
     onSuccess: (data) => {
-      navigate(`/appointments/${data.id}`);
+      navigate(`/appointments/${data.id}?returnTo=${encodeURIComponent(returnTo)}`);
     },
     onError: (error: Error) => {
       setErrors({ general: error.message || t('appointments.createError') });
@@ -79,12 +83,13 @@ export default function AppointmentForm() {
   };
 
   const handleCancel = () => {
-    navigate('/appointments');
+    navigate(returnTo);
   };
 
   return (
     <div className="min-h-screen bg-[#F6F7FA]">
       <div className="container mx-auto px-4 py-8">
+        <Breadcrumb items={[{ label: t('sidebar.appointments'), href: returnTo }, { label: t('appointments.newAppointment') }]} />
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-[#111844]">{t('appointments.newAppointment')}</h1>

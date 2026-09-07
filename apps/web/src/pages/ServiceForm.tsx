@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { servicesService, CreateServiceDto, UpdateServiceDto } from '../services/services.service';
 import { useTranslation } from 'react-i18next';
 import { moneyToCents, normalizeMoneyInput } from '../utils/money';
+import Breadcrumb from '../components/Breadcrumb';
+import { getReturnTo } from '../utils/listState';
 
 export default function ServiceForm() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = getReturnTo(searchParams.toString(), '/services');
   const isEdit = !!id;
 
   const [formData, setFormData] = useState<CreateServiceDto | UpdateServiceDto>({
@@ -44,7 +48,7 @@ export default function ServiceForm() {
   const createMutation = useMutation({
     mutationFn: (data: CreateServiceDto) => servicesService.createService(data),
     onSuccess: () => {
-      navigate('/services');
+      navigate(returnTo);
     },
     onError: (error: Error) => {
       setErrors({ general: error.message || t('services.createError') });
@@ -55,7 +59,7 @@ export default function ServiceForm() {
     mutationFn: (data: { id: string; dto: UpdateServiceDto }) =>
       servicesService.updateService(data.id, data.dto),
     onSuccess: () => {
-      navigate('/services');
+      navigate(returnTo);
     },
     onError: (error: Error) => {
       setErrors({ general: error.message || t('services.updateError') });
@@ -117,7 +121,7 @@ export default function ServiceForm() {
   };
 
   const handleCancel = () => {
-    navigate('/services');
+    navigate(returnTo);
   };
 
   if (isLoading) {
@@ -136,6 +140,7 @@ export default function ServiceForm() {
   return (
     <div className="min-h-screen bg-[#F6F7FA]">
       <div className="container mx-auto px-4 py-8">
+        <Breadcrumb items={[{ label: t('sidebar.services'), href: returnTo }, { label: isEdit ? t('services.editService') : t('services.newService') }]} />
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-[#111844]">

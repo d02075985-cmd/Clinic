@@ -1,18 +1,26 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { appointmentsService, Appointment } from '../services/appointments.service';
 import { useTranslation } from 'react-i18next';
 import { formatTime as formatTimeUtil } from '../utils/dateFormat';
+import Breadcrumb from '../components/Breadcrumb';
+import { preserveListState } from '../utils/listState';
 
 type ViewType = 'calendar' | 'list';
 
 export default function AppointmentsList() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const [viewType, setViewType] = useState<ViewType>('calendar');
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [viewType, setViewType] = useState<ViewType>((searchParams.get('view') as ViewType) || 'calendar');
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const value = searchParams.get('date');
+    const date = value ? new Date(`${value}T00:00:00`) : new Date();
+    return Number.isNaN(date.getTime()) ? new Date() : date;
+  });
+  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || '');
 
   const formatDate = (date: Date) => {
     return date.toISOString().split('T')[0];
@@ -41,17 +49,18 @@ export default function AppointmentsList() {
   };
 
   const handleNewAppointment = () => {
-    navigate('/appointments/new');
+    navigate(preserveListState('/appointments/new', location));
   };
 
   const handleDateChange = (days: number) => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + days);
     setSelectedDate(newDate);
+    setSearchParams((current) => { current.set('date', formatDate(newDate)); return current; });
   };
 
   const handleAppointmentClick = (appointment: Appointment) => {
-    navigate(`/appointments/${appointment.id}`);
+    navigate(preserveListState(`/appointments/${appointment.id}`, location));
   };
 
   const formatTime = (dateString: string) => formatTimeUtil(dateString, i18n.language);
@@ -65,6 +74,7 @@ export default function AppointmentsList() {
     return (
       <div className="min-h-screen bg-[#F6F7FA]">
         <div className="container mx-auto px-4 py-8">
+          <Breadcrumb items={[{ label: t('sidebar.appointments') }]} />
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
             <div className="h-12 bg-gray-200 rounded mb-4"></div>
@@ -103,6 +113,7 @@ export default function AppointmentsList() {
   return (
     <div className="min-h-screen bg-[#F6F7FA]">
       <div className="container mx-auto px-4 py-8">
+        <Breadcrumb items={[{ label: t('sidebar.appointments') }]} />
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-[#111844]">{t('sidebar.appointments')}</h1>
@@ -139,7 +150,7 @@ export default function AppointmentsList() {
             {/* View Toggle */}
             <div className="flex gap-2">
               <button
-                onClick={() => setViewType('calendar')}
+                onClick={() => { setViewType('calendar'); setSearchParams((current) => { current.set('view', 'calendar'); return current; }); }}
                 className={`px-3 py-1 rounded ${
                   viewType === 'calendar'
                     ? 'bg-[#111844] text-white'
@@ -149,7 +160,7 @@ export default function AppointmentsList() {
                 {t('appointments.calendarView')}
               </button>
               <button
-                onClick={() => setViewType('list')}
+                onClick={() => { setViewType('list'); setSearchParams((current) => { current.set('view', 'list'); return current; }); }}
                 className={`px-3 py-1 rounded ${
                   viewType === 'list'
                     ? 'bg-[#111844] text-white'
@@ -163,7 +174,7 @@ export default function AppointmentsList() {
             {/* Status Filter */}
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => { setStatusFilter(e.target.value); setSearchParams((current) => { if (e.target.value) current.set('status', e.target.value); else current.delete('status'); return current; }); }}
               className="px-3 py-1 border border-gray-300 rounded"
             >
               <option value="">{t('common.allStatuses')}</option>

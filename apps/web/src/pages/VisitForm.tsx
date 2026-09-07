@@ -1,15 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { visitsService, CreateVisitDto } from '../services/visits.service';
 import { patientsService } from '../services/patients.service';
 import { appointmentsService } from '../services/appointments.service';
+import { useTranslation } from 'react-i18next';
+import Breadcrumb from '../components/Breadcrumb';
+import { getReturnTo } from '../utils/listState';
 
 export default function VisitForm() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const prefillPatientId = searchParams.get('patientId') || '';
   const prefillAppointmentId = searchParams.get('appointmentId') || '';
+  const returnTo = getReturnTo(searchParams.toString(), prefillPatientId ? `/patients/${prefillPatientId}` : '/visits');
 
   const [formData, setFormData] = useState<CreateVisitDto>({
     patientId: prefillPatientId,
@@ -40,17 +45,17 @@ export default function VisitForm() {
   });
 
   // Pre-fill patient from appointment if available
-  useState(() => {
+  useEffect(() => {
     if (appointmentData && !prefillPatientId) {
       setFormData((prev) => ({ ...prev, patientId: appointmentData.patientId }));
       setPatientSearch(appointmentData.patient.fullNameAr);
     }
-  });
+  }, [appointmentData, prefillPatientId]);
 
   const createMutation = useMutation({
     mutationFn: (data: CreateVisitDto) => visitsService.createVisit(data),
     onSuccess: (data) => {
-      navigate(`/patients/${data.patientId}`);
+      navigate(`/patients/${data.patientId}?returnTo=${encodeURIComponent(returnTo)}`);
     },
     onError: (error: Error) => {
       setErrors({ general: error.message || 'فشل في إنشاء الزيارة' });
@@ -101,23 +106,24 @@ export default function VisitForm() {
 
   const handleCancel = () => {
     if (formData.patientId) {
-      navigate(`/patients/${formData.patientId}`);
+      navigate(returnTo);
     } else {
-      navigate('/visits');
+      navigate(returnTo);
     }
   };
 
   return (
     <div className="min-h-screen bg-[#F6F7FA] dir-rtl">
       <div className="container mx-auto px-4 py-8">
+        <Breadcrumb items={[{ label: t('sidebar.visits'), href: returnTo }, { label: t('visits.newVisit') }]} />
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-[#111844]">زيارة جديدة</h1>
+          <h1 className="text-3xl font-bold text-[#111844]">{t('visits.newVisit')}</h1>
           <button
             onClick={handleCancel}
             className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
           >
-            إلغاء
+            {t('common.cancel')}
           </button>
         </div>
 
@@ -271,7 +277,7 @@ export default function VisitForm() {
                 onClick={handleCancel}
                 className="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
               >
-                إلغاء
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"

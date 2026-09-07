@@ -1,10 +1,15 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { patientsService } from '../services/patients.service';
 import { visitsService } from '../services/visits.service';
+import { invoicesService } from '../services/invoices.service';
+import { appointmentsService } from '../services/appointments.service';
+import { paymentsService, Payment } from '../services/payments.service';
 import { useTranslation } from 'react-i18next';
 import { formatDate, formatDateTime } from '../utils/dateFormat';
+import Breadcrumb from '../components/Breadcrumb';
+import { getReturnTo, preserveListState } from '../utils/listState';
 
 type TabType = 'overview' | 'visits' | 'invoices' | 'payments' | 'appointments';
 
@@ -12,6 +17,8 @@ export default function PatientProfile() {
   const { t, i18n } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const patientsListReturnTo = getReturnTo(searchParams.toString(), '/patients');
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
   const { data: patient, isLoading, error } = useQuery({
@@ -24,6 +31,24 @@ export default function PatientProfile() {
     queryKey: ['patientVisits', id],
     queryFn: () => visitsService.getPatientVisits(id!),
     enabled: !!id && activeTab === 'visits',
+  });
+  const { data: invoicesData } = useQuery({
+    queryKey: ['patientInvoices', id],
+    queryFn: () => invoicesService.getInvoices(id!, undefined, 1, 50),
+    enabled: !!id && (activeTab === 'invoices' || activeTab === 'payments'),
+  });
+  const { data: appointmentsData } = useQuery({
+    queryKey: ['patientAppointments', id],
+    queryFn: () => appointmentsService.getAppointments(undefined, undefined, id!, 1, 50),
+    enabled: !!id && activeTab === 'appointments',
+  });
+  const { data: payments = [] } = useQuery<Payment[]>({
+    queryKey: ['patientPayments', id, invoicesData?.data.map((invoice) => invoice.id)],
+    queryFn: async () => {
+      const invoices = invoicesData?.data || [];
+      return (await Promise.all(invoices.map((invoice) => paymentsService.getPaymentsForInvoice(invoice.id)))).flat();
+    },
+    enabled: !!id && activeTab === 'payments' && !!invoicesData,
   });
 
   const visits = visitsData?.data || [];
@@ -67,14 +92,7 @@ export default function PatientProfile() {
   return (
     <div className="min-h-screen bg-[#F6F7FA]">
       <div className="container mx-auto px-4 py-8">
-        {/* Breadcrumb */}
-        <div className="mb-6 text-sm text-gray-600">
-          <button onClick={() => navigate('/patients')} className="hover:text-[#111844]">
-            {t('sidebar.patients')}
-          </button>
-          <span className="mx-2">/</span>
-          <span className="text-gray-900">{patient.fullNameAr}</span>
-        </div>
+        <Breadcrumb items={[{ label: t('sidebar.patients'), href: patientsListReturnTo }, { label: patient.fullNameAr }]} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Profile Panel (Right side in RTL) */}
@@ -132,7 +150,7 @@ export default function PatientProfile() {
               <div className="space-y-3">
                 {/* + New Visit - Primary Action */}
                 <button
-                  onClick={() => navigate(`/visits/new?patientId=${patient.id}`)}
+                  onClick={() => navigate(preserveListState(`/visits/new?patientId=${patient.id}`, { pathname: `/patients/${patient.id}`, search: '' }))}
                   className="w-full py-3 bg-[#111844] text-white rounded-md hover:bg-[#1a237e] transition-colors font-medium"
                 >
                   + {t('visits.newVisit')}
@@ -140,7 +158,7 @@ export default function PatientProfile() {
 
                 {/* Edit Patient */}
                 <button
-                  onClick={() => navigate(`/patients/${patient.id}/edit`)}
+                  onClick={() => navigate(preserveListState(`/patients/${patient.id}/edit`, { pathname: `/patients/${patient.id}`, search: searchParams.toString() }))}
                   className="w-full py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
                 >
                   {t('patients.editData')}
@@ -209,7 +227,7 @@ export default function PatientProfile() {
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-lg font-semibold text-gray-900">{t('patients.visitsHistory')}</h3>
                       <button
-                        onClick={() => navigate(`/visits/new?patientId=${id}`)}
+                        onClick={() => navigate(preserveListState(`/visits/new?patientId=${id}`, { pathname: `/patients/${id}`, search: '' }))}
                         className="px-4 py-2 bg-[#111844] text-white rounded-md hover:bg-[#1a237e] transition-colors text-sm"
                       >
                         + {t('visits.newVisit')}
@@ -231,7 +249,7 @@ export default function PatientProfile() {
                         </thead>
                         <tbody className="divide-y divide-gray-200">
                           {visits.map((visit) => (
-                            <tr key={visit.id}>
+                            <tr key={visit.id} onClick={() => navigate(preserveListState(`/visits/${visit.id}`, { pathname: `/patients/${patient.id}`, search: '' }))} className="cursor-pointer hover:bg-gray-50">
                               <td className="px-4 py-3 text-gray-900">
                                 {formatDateTime(visit.visitDate, i18n.language)}
                               </td>
@@ -262,27 +280,39 @@ export default function PatientProfile() {
                 {activeTab === 'invoices' && (
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('patients.invoicesHistory')}</h3>
-                    <div className="text-center py-8 text-gray-500">
-                      {t('patients.noInvoicesRecorded')}
-                    </div>
+                    {(invoicesData?.data || []).length === 0 ? <div className="text-center py-8 text-gray-500">{t('patients.noInvoicesRecorded')}</div> : (
+                      <div className="space-y-2">{invoicesData?.data.map((invoice) => (
+                    <button key={invoice.id} onClick={() => navigate(preserveListState(`/invoices/${invoice.id}`, { pathname: `/patients/${patient.id}`, search: '' }))} className="w-full flex justify-between p-3 bg-gray-50 rounded hover:bg-gray-100 text-right">
+                      <span className="font-medium">{invoice.invoiceNumber}</span><span>{formatDate(invoice.createdAt, i18n.language)} · {invoice.total} {t('common.currency')}</span>
+                    </button>
+                      ))}</div>
+                    )}
                   </div>
                 )}
 
                 {activeTab === 'payments' && (
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('patients.paymentsHistory')}</h3>
-                    <div className="text-center py-8 text-gray-500">
-                      {t('patients.noPaymentsRecorded')}
-                    </div>
+                    {payments.length === 0 ? <div className="text-center py-8 text-gray-500">{t('patients.noPaymentsRecorded')}</div> : (
+                      <div className="space-y-2">{payments.map((payment) => (
+                        <button key={payment.id} onClick={() => navigate(preserveListState(`/invoices/${payment.invoiceId}`, { pathname: `/patients/${patient.id}`, search: '' }))} className="w-full flex justify-between p-3 bg-gray-50 rounded hover:bg-gray-100 text-right">
+                          <span>{formatDate(payment.paymentDate, i18n.language)}</span><span>{payment.amount} {t('common.currency')}</span>
+                        </button>
+                      ))}</div>
+                    )}
                   </div>
                 )}
 
                 {activeTab === 'appointments' && (
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('patients.appointmentsHistory')}</h3>
-                    <div className="text-center py-8 text-gray-500">
-                      {t('patients.noAppointmentsRecorded')}
-                    </div>
+                    {(appointmentsData?.data || []).length === 0 ? <div className="text-center py-8 text-gray-500">{t('patients.noAppointmentsRecorded')}</div> : (
+                      <div className="space-y-2">{appointmentsData?.data.map((appointment) => (
+                        <button key={appointment.id} onClick={() => navigate(preserveListState(`/appointments/${appointment.id}`, { pathname: `/patients/${patient.id}`, search: '' }))} className="w-full flex justify-between p-3 bg-gray-50 rounded hover:bg-gray-100 text-right">
+                          <span>{formatDateTime(appointment.scheduledAt, i18n.language)}</span><span>{appointment.status}</span>
+                        </button>
+                      ))}</div>
+                    )}
                   </div>
                 )}
               </div>

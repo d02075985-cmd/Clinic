@@ -46,6 +46,7 @@
     "hidePassword": "Hide password",
     "markAllRead": "Mark all read",
     "noNotifications": "No notifications"
+    ,"breadcrumb": "Breadcrumb"
   },
   "roles": {
     "admin": "Admin",
@@ -270,7 +271,9 @@
     "createReplacementTitle": "Create Replacement Invoice",
     "replacementNote": "The current invoice will be voided and a new replacement invoice created.",
     "replacementConfirm": "Are you sure you want to create a replacement invoice?",
-    "createReplacementBtn": "Create Replacement Invoice"
+    "createReplacementBtn": "Create Replacement Invoice",
+    "replacementInvoice": "View replacement invoice",
+    "replacedInvoice": "View original invoice"
   },
   "payments": {
     "methodCash": "Cash",

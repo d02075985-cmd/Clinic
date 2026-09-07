@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { patientsService, CreatePatientDto, UpdatePatientDto } from '../services/patients.service';
 import { useTranslation } from 'react-i18next';
 import DateInput from '../components/DateInput';
+import Breadcrumb from '../components/Breadcrumb';
+import { getReturnTo } from '../utils/listState';
 
 interface PatientFormProps {
   patientId?: string;
@@ -12,6 +14,8 @@ interface PatientFormProps {
 export default function PatientForm({ patientId }: PatientFormProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = getReturnTo(searchParams.toString(), '/patients');
   const [formData, setFormData] = useState<CreatePatientDto | UpdatePatientDto>({
     civilId: '',
     fullNameAr: '',
@@ -46,7 +50,7 @@ export default function PatientForm({ patientId }: PatientFormProps) {
   const createMutation = useMutation({
     mutationFn: (data: CreatePatientDto) => patientsService.createPatient(data),
     onSuccess: (data) => {
-      navigate(`/patients/${data.id}`);
+      navigate(`/patients/${data.id}?returnTo=${encodeURIComponent(returnTo)}`);
     },
     onError: (error: Error) => {
       setErrors({ general: error.message || t('patients.createError') });
@@ -57,7 +61,7 @@ export default function PatientForm({ patientId }: PatientFormProps) {
     mutationFn: ({ id, data }: { id: string; data: UpdatePatientDto }) =>
       patientsService.updatePatient(id, data),
     onSuccess: (data) => {
-      navigate(`/patients/${data.id}`);
+      navigate(`/patients/${data.id}?returnTo=${encodeURIComponent(returnTo)}`);
     },
     onError: (error: Error) => {
       setErrors({ general: error.message || t('patients.updateError') });
@@ -133,6 +137,7 @@ export default function PatientForm({ patientId }: PatientFormProps) {
     return (
       <div className="min-h-screen bg-[#F6F7FA]">
         <div className="container mx-auto px-4 py-8">
+          <Breadcrumb items={[{ label: t('sidebar.patients'), href: returnTo }, { label: patientId ? t('patients.editPatientTitle') : t('patients.addNew') }]} />
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
             <div className="space-y-4">
@@ -149,13 +154,14 @@ export default function PatientForm({ patientId }: PatientFormProps) {
   return (
     <div className="min-h-screen bg-[#F6F7FA]">
       <div className="container mx-auto px-4 py-8">
+        <Breadcrumb items={[{ label: t('sidebar.patients'), href: returnTo }, { label: patientId ? t('patients.editPatientTitle') : t('patients.addNew') }]} />
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-[#111844]">
             {patientId ? t('patients.editPatientTitle') : t('patients.addNew')}
           </h1>
           <button
-            onClick={() => navigate('/patients')}
+            onClick={() => navigate(returnTo)}
             className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
           >
             {t('common.cancel')}
@@ -282,7 +288,7 @@ export default function PatientForm({ patientId }: PatientFormProps) {
             <div className="flex justify-end gap-4">
               <button
                 type="button"
-                onClick={() => navigate('/patients')}
+                onClick={() => navigate(returnTo)}
                 className="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
               >
                 {t('common.cancel')}
