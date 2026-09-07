@@ -9,6 +9,7 @@ import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import Skeleton from '../components/Skeleton';
 import { preserveListState } from '../utils/listState';
+import MobileRecordCard, { MobileRecordField } from '../components/MobileRecordCard';
 
 // Masks all but the first and last digit of a civil ID for display in the
 // list view only — the full number is still shown on the patient's own
@@ -69,8 +70,8 @@ export default function PatientsList() {
         }
       />
 
-      <div className="flex items-center gap-3 mb-5">
-        <div className="relative flex-1 max-w-md">
+      <div className="mb-5 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+        <div className="relative w-full flex-1 sm:max-w-md">
           <Search size={17} strokeWidth={1.75} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
           <input
             type="text"
@@ -89,7 +90,7 @@ export default function PatientsList() {
             {t('common.filter')}
           </button>
           {showFilter && (
-            <div className="absolute left-0 mt-2 w-40 bg-white border border-[#E2E8F0] rounded-[10px] shadow-[var(--shadow-soft-lg)] z-10 overflow-hidden">
+            <div style={{ insetInlineStart: 0 }} className="absolute z-10 mt-2 w-40 overflow-hidden rounded-[10px] border border-[#E2E8F0] bg-white shadow-[var(--shadow-soft-lg)]">
               {(['all', 'active', 'archived'] as const).map((opt) => (
                 <button
                   key={opt}
@@ -127,7 +128,29 @@ export default function PatientsList() {
       )}
 
       {!isLoading && !error && patients.length > 0 && (
-        <div className="ui-card overflow-hidden p-0">
+         <div className="ui-card overflow-hidden p-0">
+          <div className="mobile-record-list p-3 md:hidden">
+            {patients.map((patient) => (
+              <MobileRecordCard
+                key={patient.id}
+                title={patient.fullNameAr}
+                subtitle={patient.fullNameEn}
+                actions={
+                  <div className="flex items-center gap-1">
+                    <button onClick={(event) => { event.stopPropagation(); navigate(preserveListState(`/patients/${patient.id}/edit`, location)); }} aria-label={t('patients.editPatient')} className="icon-btn"><Pencil size={16} strokeWidth={1.75} /></button>
+                    <button onClick={(event) => { event.stopPropagation(); navigate(`/appointments/new?patientId=${encodeURIComponent(patient.id)}&returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`); }} aria-label={t('patients.bookAppointment')} className="icon-btn"><CalendarPlus size={16} strokeWidth={1.75} /></button>
+                  </div>
+                }
+                onClick={() => navigate(preserveListState(`/patients/${patient.id}`, location))}
+              >
+                <MobileRecordField label={t('patients.civilId')} value={<span className="font-mono">{maskCivilId(patient.civilId)}</span>} />
+                <MobileRecordField label={t('patients.phone')} value={patient.phone || '—'} />
+                <MobileRecordField label={t('patients.lastVisit')} value={formatDate(patient.lastVisitDate, i18n.language)} />
+                <MobileRecordField label={t('patients.nextVisit')} value={formatDate(patient.nextAppointmentDate, i18n.language)} />
+              </MobileRecordCard>
+            ))}
+          </div>
+          <div className="hidden md:block">
           <table className="ui-table">
             <thead>
               <tr>
@@ -179,6 +202,7 @@ export default function PatientsList() {
               ))}
             </tbody>
           </table>
+          </div>
 
           {meta && (
             <div className="flex items-center justify-between px-5 py-4 border-t border-[#E2E8F0]">

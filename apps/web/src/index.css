@@ -81,6 +81,12 @@ h4 {
   padding: 28px 32px;
 }
 
+@media (max-width: 640px) {
+  .page-container {
+    padding: 20px 16px;
+  }
+}
+
 .ui-card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
@@ -161,6 +167,13 @@ h4 {
 }
 .ui-table tbody tr:hover td {
   background: var(--bg-primary);
+}
+
+@media (max-width: 767px) {
+  .mobile-record-list {
+    display: grid;
+    gap: 12px;
+  }
 }
 
 .icon-btn {

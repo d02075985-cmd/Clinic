@@ -174,7 +174,7 @@ export default function InvoiceForm() {
 
   return (
     <div className="min-h-screen bg-[#F6F7FA]">
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
+    <div className="container mx-auto max-w-2xl px-4 py-5 sm:py-8">
         <PageHeader title={t('invoices.newInvoice')} breadcrumbs={[{ label: t('sidebar.invoices'), href: returnTo }, { label: t('invoices.newInvoice') }]} />
 
         {visit && (
@@ -190,16 +190,16 @@ export default function InvoiceForm() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6">
+        <form onSubmit={handleSubmit} className="rounded-lg bg-white p-4 shadow-md sm:p-6">
           <div className="space-y-4 mb-4">
             {items.map((item, index) => {
               const service = services.find((s) => s.id === item.serviceId);
               return (
-                <div key={index} className="flex gap-3 items-start">
+                <div key={index} className="grid grid-cols-1 items-start gap-3 rounded border border-gray-100 p-3 sm:flex sm:border-0 sm:p-0">
                   <select
                     value={item.serviceId}
                     onChange={(e) => updateLine(index, 'serviceId', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844]"
+                    className="w-full flex-1 rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#111844]"
                     required
                   >
                     <option value="">{t('invoices.chooseService')}</option>
@@ -214,7 +214,7 @@ export default function InvoiceForm() {
                     min={1}
                     value={item.quantity}
                     onChange={(e) => updateLine(index, 'quantity', parseInt(e.target.value, 10) || 1)}
-                    className="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844]"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#111844] sm:w-20"
                   />
                   <input
                     type="text"
@@ -225,10 +225,10 @@ export default function InvoiceForm() {
                     onChange={(e) => updateLine(index, 'unitPrice', e.target.value === '' ? null : parseMoneyField(e.target.value))}
                     disabled={!item.serviceId}
                     placeholder={t('services.price')}
-                    className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844] disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#111844] disabled:cursor-not-allowed disabled:bg-gray-100 sm:w-24"
                     title={t('invoices.priceOverrideHint')}
                   />
-                  <div className="w-24 pt-2 text-gray-700 text-sm">
+                  <div className="w-full pt-1 text-left text-sm text-gray-700 sm:w-24 sm:pt-2">
                     {service && item.unitPrice !== null
                       ? formatMoney(centsToMoney((moneyToCents(item.unitPrice) || 0) * item.quantity), i18n.language)
                       : formatMoney(0, i18n.language)} {t('common.currency')}
@@ -259,11 +259,11 @@ export default function InvoiceForm() {
           <div className="border-t border-gray-200 pt-4 mb-6">
             <h3 className="text-lg font-bold text-[#111844] mb-4">{t('invoices.additionalCharges')}</h3>
             {additionalCharges.map((charge, index) => (
-              <div key={index} className="flex gap-3 items-start mb-3 bg-gray-50 p-3 rounded">
+              <div key={index} className="mb-3 grid grid-cols-1 items-start gap-3 rounded bg-gray-50 p-3 sm:flex">
                 <select
                   value={charge.chargeType}
                   onChange={(e) => updateCharge(index, 'chargeType', e.target.value as 'PERCENTAGE' | 'FIXED')}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844]"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#111844] sm:w-auto"
                 >
                   <option value="FIXED">{t('invoices.chargeTypeFixed')}</option>
                   <option value="PERCENTAGE">{t('invoices.chargeTypePercentage')}</option>
@@ -276,16 +276,16 @@ export default function InvoiceForm() {
                   value={charge.chargeValue}
                   onChange={(e) => updateCharge(index, 'chargeValue', parseMoneyField(e.target.value) || 0)}
                   placeholder={charge.chargeType === 'PERCENTAGE' ? t('invoices.percentagePlaceholder') : t('invoices.amountPlaceholder')}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844]"
+                  className="w-full flex-1 rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#111844]"
                 />
                 <input
                   type="text"
                   value={charge.description}
                   onChange={(e) => updateCharge(index, 'description', e.target.value)}
                   placeholder={t('services.description')}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844]"
+                  className="w-full flex-1 rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#111844]"
                 />
-                <div className="w-24 pt-2 text-gray-700 text-sm">
+                <div className="w-full pt-1 text-left text-sm text-gray-700 sm:w-24 sm:pt-2">
                   {charge.chargeType === 'PERCENTAGE'
                     ? `${formatMoney(centsToMoney(roundDivide(subtotalCents * (moneyToCents(charge.chargeValue) || 0), 10000)), i18n.language)} ${t('common.currency')}`
                     : `${formatMoney(charge.chargeValue, i18n.language)} ${t('common.currency')}`
@@ -336,7 +336,7 @@ export default function InvoiceForm() {
             </div>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row">
             <button
               type="submit"
               disabled={createMutation.isPending}
@@ -347,7 +347,7 @@ export default function InvoiceForm() {
             <button
               type="button"
               onClick={() => navigate(returnTo)}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              className="w-full rounded-md border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 sm:w-auto"
             >
               {t('common.cancel')}
             </button>

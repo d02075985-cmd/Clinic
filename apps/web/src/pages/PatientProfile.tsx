@@ -12,6 +12,7 @@ import { getReturnTo, preserveListState } from '../utils/listState';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import Skeleton from '../components/Skeleton';
+import MobileRecordCard, { MobileRecordField } from '../components/MobileRecordCard';
 
 type TabType = 'overview' | 'visits' | 'invoices' | 'payments' | 'appointments';
 
@@ -182,12 +183,12 @@ export default function PatientProfile() {
             <div className="bg-white rounded-lg shadow-md">
               {/* Tabs */}
               <div className="border-b border-gray-200">
-                <nav className="flex space-x-0 space-x-reverse">
+                <nav className="grid grid-cols-2 sm:flex sm:flex-wrap" aria-label="Patient sections">
                   {tabs.map((tab) => (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`px-6 py-4 text-sm font-medium transition-colors ${
+                      className={`px-3 py-3 text-sm font-medium transition-colors sm:px-6 sm:py-4 ${
                         activeTab === tab.id
                           ? 'text-[#111844] border-b-2 border-[#111844]'
                           : 'text-gray-500 hover:text-gray-700'
@@ -239,6 +240,21 @@ export default function PatientProfile() {
                     {visits.length === 0 ? (
                       <EmptyState title={t('patients.noVisitsRecorded')} />
                     ) : (
+                      <>
+                      <div className="mobile-record-list md:hidden">
+                        {visits.map((visit) => (
+                          <MobileRecordCard
+                            key={visit.id}
+                            title={formatDateTime(visit.visitDate, i18n.language)}
+                            subtitle={visit.notes || undefined}
+                            onClick={() => navigate(preserveListState(`/visits/${visit.id}`, { pathname: `/patients/${patient.id}`, search: '' }))}
+                          >
+                            <MobileRecordField label={t('visits.type')} value={visit.type === 'CHECKUP' ? t('visits.typeCheckup') : visit.type === 'FOLLOW_UP' ? t('visits.typeFollowUp') : t('visits.typeOther')} />
+                            <MobileRecordField label={t('sidebar.appointments')} value={visit.appointment ? formatDate(visit.appointment.scheduledAt, i18n.language) : '-'} />
+                          </MobileRecordCard>
+                        ))}
+                      </div>
+                      <div className="hidden md:block">
                       <table className="w-full">
                         <thead className="bg-gray-50">
                           <tr>
@@ -274,6 +290,8 @@ export default function PatientProfile() {
                           ))}
                         </tbody>
                       </table>
+                      </div>
+                      </>
                     )}
                   </div>
                 )}
@@ -283,9 +301,9 @@ export default function PatientProfile() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('patients.invoicesHistory')}</h3>
                     {(invoicesData?.data || []).length === 0 ? <EmptyState title={t('patients.noInvoicesRecorded')} /> : (
                       <div className="space-y-2">{invoicesData?.data.map((invoice) => (
-                    <button key={invoice.id} onClick={() => navigate(preserveListState(`/invoices/${invoice.id}`, { pathname: `/patients/${patient.id}`, search: '' }))} className="w-full flex justify-between p-3 bg-gray-50 rounded hover:bg-gray-100 text-right">
-                      <span className="font-medium">{invoice.invoiceNumber}</span><span>{formatDate(invoice.createdAt, i18n.language)} · {invoice.total} {t('common.currency')}</span>
-                    </button>
+                        <button key={invoice.id} onClick={() => navigate(preserveListState(`/invoices/${invoice.id}`, { pathname: `/patients/${patient.id}`, search: '' }))} className="flex w-full flex-col gap-1 rounded bg-gray-50 p-3 text-right hover:bg-gray-100 sm:flex-row sm:items-center sm:justify-between">
+                          <span className="font-medium">{invoice.invoiceNumber}</span><span>{formatDate(invoice.createdAt, i18n.language)} · {invoice.total} {t('common.currency')}</span>
+                        </button>
                       ))}</div>
                     )}
                   </div>
@@ -296,8 +314,8 @@ export default function PatientProfile() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('patients.paymentsHistory')}</h3>
                     {payments.length === 0 ? <EmptyState title={t('patients.noPaymentsRecorded')} /> : (
                       <div className="space-y-2">{payments.map((payment) => (
-                        <button key={payment.id} onClick={() => navigate(preserveListState(`/invoices/${payment.invoiceId}`, { pathname: `/patients/${patient.id}`, search: '' }))} className="w-full flex justify-between p-3 bg-gray-50 rounded hover:bg-gray-100 text-right">
-                          <span>{formatDate(payment.paymentDate, i18n.language)}</span><span>{payment.amount} {t('common.currency')}</span>
+                        <button key={payment.id} onClick={() => navigate(preserveListState(`/invoices/${payment.invoiceId}`, { pathname: `/patients/${patient.id}`, search: '' }))} className="flex w-full flex-col gap-1 rounded bg-gray-50 p-3 text-right hover:bg-gray-100 sm:flex-row sm:items-center sm:justify-between">
+                          <span>{formatDate(payment.paymentDate, i18n.language)}</span><span className="font-semibold">{payment.amount} {t('common.currency')}</span>
                         </button>
                       ))}</div>
                     )}

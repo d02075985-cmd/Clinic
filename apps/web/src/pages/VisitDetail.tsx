@@ -81,7 +81,7 @@ export default function VisitDetail() {
             {t('visits.patientInfo')}
           </h2>
           <div className="space-y-3 text-sm">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2">
               <User size={15} strokeWidth={1.75} className="text-[#94A3B8]" />
               <span className="text-[#64748B]">{t('visits.nameLabel')}</span>
               <Link
@@ -91,7 +91,7 @@ export default function VisitDetail() {
                 {visit.patient.fullNameAr}
               </Link>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2">
               <IdCard size={15} strokeWidth={1.75} className="text-[#94A3B8]" />
               <span className="text-[#64748B]">{t('patients.civilId')}:</span>
               <span className="font-medium text-[#1F2430] font-mono">{visit.patient.civilId}</span>
@@ -119,13 +119,13 @@ export default function VisitDetail() {
               <span className="font-medium text-[#1F2430]">{TYPE_LABELS[visit.type]}</span>
             </div>
             {visit.diagnosis && (
-              <div className="flex items-start gap-2">
+              <div className="flex flex-col items-start gap-1 sm:flex-row sm:gap-2">
                 <span className="text-[#64748B] shrink-0">{t('visits.diagnosisLabel')}</span>
                 <span className="font-medium text-[#1F2430]">{visit.diagnosis}</span>
               </div>
             )}
             {visit.notes && (
-              <div className="flex items-start gap-2">
+              <div className="flex flex-col items-start gap-1 sm:flex-row sm:gap-2">
                 <span className="text-[#64748B] shrink-0">{t('visits.notesLabel')}</span>
                 <span className="text-[#1F2430]">{visit.notes}</span>
               </div>
@@ -160,7 +160,7 @@ export default function VisitDetail() {
         </h2>
         {invoice ? (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
+            <div className="mb-4 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 md:grid-cols-4">
               <div>
                 <div className="text-[#94A3B8] text-xs mb-1">{t('invoices.number')}</div>
                 <Link
@@ -183,7 +183,7 @@ export default function VisitDetail() {
                 <div className="font-medium text-[#C4362B]">{formatMoney(invoice.remaining, i18n.language)} {t('common.currency')}</div>
               </div>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
               <span className="ui-badge" style={{ background: 'rgba(23,59,120,0.08)', color: 'var(--brand-blue)' }}>
                 {PAYMENT_STATUS_LABELS[invoice.paymentStatus]}
               </span>

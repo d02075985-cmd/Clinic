@@ -162,7 +162,7 @@ export default function InvoiceDetail() {
 
   return (
     <div className="min-h-screen bg-[#F6F7FA]">
-      <div className="container mx-auto px-4 py-8 max-w-3xl">
+      <div className="container mx-auto max-w-3xl px-4 py-5 sm:py-8">
         <PageHeader
           title={invoice.invoiceNumber}
           breadcrumbs={[{ label: t('sidebar.invoices'), href: returnTo }, { label: invoice.invoiceNumber }]}
@@ -180,8 +180,8 @@ export default function InvoiceDetail() {
         )}
 
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="flex justify-between items-start mb-4">
+        <div className="mb-6 rounded-lg bg-white p-4 shadow-md sm:p-6">
+          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-[#111844]">{invoice.invoiceNumber}</h1>
               <Link
@@ -212,7 +212,7 @@ export default function InvoiceDetail() {
                 </div>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {invoice.status === 'DRAFT' && (
                 <button
                   onClick={() => setConfirmStatus('ISSUED')}
@@ -242,7 +242,7 @@ export default function InvoiceDetail() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 md:grid-cols-4">
             <div>
               <div className="text-gray-500">{t('invoices.invoiceStatus')}</div>
               <div className="font-medium text-gray-900">{statusLabels[invoice.status]}</div>
@@ -266,6 +266,19 @@ export default function InvoiceDetail() {
 
         {/* Items */}
         <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
+          <div className="mobile-record-list p-3 md:hidden">
+            {invoice.invoiceItems.map((item) => (
+              <div key={item.id} className="ui-card p-4">
+                <div className="font-medium text-gray-900">{item.serviceNameSnapshot}</div>
+                <div className="mt-2 grid gap-2 text-sm">
+                  <div className="flex justify-between"><span className="text-gray-500">{t('services.price')}</span><span>{formatMoney(item.unitPriceSnapshot, i18n.language)} {t('common.currency')}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">{t('invoices.quantity')}</span><span>{item.quantity}</span></div>
+                  <div className="flex justify-between font-medium"><span className="text-gray-500">{t('invoices.total')}</span><span>{formatMoney(item.lineTotal, i18n.language)} {t('common.currency')}</span></div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden md:block">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
@@ -286,6 +299,7 @@ export default function InvoiceDetail() {
               ))}
             </tbody>
           </table>
+          </div>
           <div className="border-t border-gray-200 p-4 space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">{t('invoices.subtotal')}</span>
@@ -344,7 +358,7 @@ export default function InvoiceDetail() {
         {canRecordPayment && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 className="text-lg font-bold text-[#111844] mb-4">{t('payments.recordPayment')}</h2>
-            <form onSubmit={handleRecordPayment} className="flex flex-wrap gap-3 items-end">
+            <form onSubmit={handleRecordPayment} className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
               <div className="flex-1 min-w-[120px]">
                 <label className="block text-sm text-gray-600 mb-1">{t('payments.amount')}</label>
                 <input
@@ -400,6 +414,23 @@ export default function InvoiceDetail() {
           ) : !payments || payments.length === 0 ? (
             <div className="p-6 text-center text-gray-500">{t('payments.noPayments')}</div>
           ) : (
+            <>
+            <div className="mobile-record-list p-3 md:hidden">
+              {payments.map((payment) => (
+                <div key={payment.id} className="ui-card p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="font-medium text-gray-900">{formatMoney(payment.amount, i18n.language)} {t('common.currency')}</span>
+                    <span className="text-sm text-gray-600">{PAYMENT_METHOD_LABELS[payment.method]}</span>
+                  </div>
+                  <div className="mt-2 grid gap-2 text-sm">
+                    <div className="flex justify-between"><span className="text-gray-500">{t('common.date')}</span><span>{formatDateTime(payment.paymentDate, i18n.language)}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">{t('payments.recordedBy')}</span><span>{payment.recordedBy?.name || '—'}</span></div>
+                    {isAdmin && <button onClick={() => setPaymentToReverse(payment.id)} className="text-right text-sm text-[#C4362B]">{t('payments.reversePayment')}</button>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden md:block">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
@@ -458,6 +489,8 @@ export default function InvoiceDetail() {
                 ))}
               </tbody>
             </table>
+            </div>
+            </>
           )}
         </div>
 

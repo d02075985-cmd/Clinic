@@ -143,7 +143,7 @@ export default function PatientForm({ patientId }: PatientFormProps) {
   if (isLoadingPatient) {
     return (
       <div className="min-h-screen bg-[#F6F7FA]">
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-5 sm:py-8">
           <div className="ui-card p-6 space-y-3">
             <Skeleton className="h-8 rounded-lg" />
             <Skeleton className="h-12 rounded-lg" count={6} />
@@ -163,7 +163,7 @@ export default function PatientForm({ patientId }: PatientFormProps) {
         />
 
         {/* Form */}
-        <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl">
+        <div className="w-full max-w-2xl rounded-lg bg-white p-4 shadow-md sm:p-6">
           {errors.general && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
               {errors.general}
@@ -279,18 +279,18 @@ export default function PatientForm({ patientId }: PatientFormProps) {
             </div>
 
             {/* Submit Button */}
-            <div className="flex justify-end gap-4">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-4">
               <button
                 type="button"
                 onClick={() => navigate(returnTo)}
-                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+                className="w-full rounded-md bg-gray-200 px-6 py-2 text-gray-700 transition-colors hover:bg-gray-300 sm:w-auto"
               >
                 {t('common.cancel')}
               </button>
               <button
                 type="submit"
                 disabled={createMutation.isPending || updateMutation.isPending}
-                className="px-6 py-2 bg-[#111844] text-white rounded-md hover:bg-[#1a237e] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-md bg-[#111844] px-6 py-2 text-white transition-colors hover:bg-[#1a237e] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 {createMutation.isPending || updateMutation.isPending
                   ? t('common.saving')

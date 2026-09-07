@@ -8,6 +8,7 @@ import { preserveListState } from '../utils/listState';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import Skeleton from '../components/Skeleton';
+import MobileRecordCard, { MobileRecordField } from '../components/MobileRecordCard';
 
 type ViewType = 'calendar' | 'list';
 
@@ -120,16 +121,16 @@ export default function AppointmentsList() {
 
         {/* Controls */}
         <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-          <div className="flex flex-wrap gap-4 items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             {/* Date Navigation */}
-            <div className="flex items-center gap-4">
+            <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:gap-4">
               <button
                 onClick={() => handleDateChange(-1)}
                 className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50"
               >
                 {t('common.previous')}
               </button>
-              <span className="font-medium text-gray-900 min-w-[200px] text-center">
+              <span className="min-w-0 flex-1 text-center font-medium text-gray-900 sm:min-w-[200px]">
                 {formatDateDisplay(selectedDate)}
               </span>
               <button
@@ -141,10 +142,10 @@ export default function AppointmentsList() {
             </div>
 
             {/* View Toggle */}
-            <div className="flex gap-2">
+            <div className="flex w-full gap-2 sm:w-auto">
               <button
                 onClick={() => { setViewType('calendar'); setSearchParams((current) => { current.set('view', 'calendar'); return current; }); }}
-                className={`px-3 py-1 rounded ${
+                className={`flex-1 rounded px-3 py-2 text-sm sm:flex-none sm:py-1 ${
                   viewType === 'calendar'
                     ? 'bg-[#111844] text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -154,7 +155,7 @@ export default function AppointmentsList() {
               </button>
               <button
                 onClick={() => { setViewType('list'); setSearchParams((current) => { current.set('view', 'list'); return current; }); }}
-                className={`px-3 py-1 rounded ${
+                className={`flex-1 rounded px-3 py-2 text-sm sm:flex-none sm:py-1 ${
                   viewType === 'list'
                     ? 'bg-[#111844] text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -168,7 +169,7 @@ export default function AppointmentsList() {
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setSearchParams((current) => { if (e.target.value) current.set('status', e.target.value); else current.delete('status'); return current; }); }}
-              className="px-3 py-1 border border-gray-300 rounded"
+              className="w-full rounded border border-gray-300 px-3 py-2 sm:w-auto sm:py-1"
             >
               <option value="">{t('common.allStatuses')}</option>
               <option value="BOOKED">{t('appointments.statusBooked')}</option>
@@ -202,7 +203,7 @@ export default function AppointmentsList() {
                           <div
                             key={apt.id}
                             onClick={() => handleAppointmentClick(apt)}
-                            className="flex items-center justify-between p-3 bg-gray-50 rounded cursor-pointer hover:bg-gray-100 mb-2"
+                            className="mb-2 flex cursor-pointer items-center justify-between rounded bg-gray-50 p-3 hover:bg-gray-100"
                           >
                             <div>
                               <div className="font-medium text-gray-900">{apt.patient.fullNameAr}</div>
@@ -228,6 +229,24 @@ export default function AppointmentsList() {
             {appointments.length === 0 ? (
               <EmptyState title={t('appointments.noAppointmentsToday')} description={t('common.emptyDescription')} />
             ) : (
+              <>
+              <div className="mobile-record-list p-3 md:hidden">
+                {appointments
+                  .slice()
+                  .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+                  .map((apt) => (
+                    <MobileRecordCard
+                      key={apt.id}
+                      title={apt.patient.fullNameAr}
+                      subtitle={formatTime(apt.scheduledAt)}
+                      onClick={() => handleAppointmentClick(apt)}
+                    >
+                      <MobileRecordField label={t('patients.civilId')} value={apt.patient.civilId} />
+                      <MobileRecordField label={t('common.status')} value={getStatusBadge(apt.status)} />
+                    </MobileRecordCard>
+                  ))}
+              </div>
+              <div className="hidden md:block">
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
@@ -253,7 +272,9 @@ export default function AppointmentsList() {
                       </tr>
                     ))}
                 </tbody>
-              </table>
+            </table>
+            </div>
+            </>
             )}
           </div>
         )}

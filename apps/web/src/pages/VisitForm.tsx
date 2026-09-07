@@ -118,7 +118,7 @@ export default function VisitForm() {
 
   return (
     <div className="min-h-screen bg-[#F6F7FA] dir-rtl">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-5 sm:py-8">
         <PageHeader
           title={t('visits.newVisit')}
           breadcrumbs={[{ label: t('sidebar.visits'), href: returnTo }, { label: t('visits.newVisit') }]}
@@ -126,7 +126,7 @@ export default function VisitForm() {
         />
 
         {/* Form */}
-        <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl">
+        <div className="w-full max-w-2xl rounded-lg bg-white p-4 shadow-md sm:p-6">
           {errors.general && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
               {errors.general}
@@ -269,18 +269,18 @@ export default function VisitForm() {
             </div>
 
             {/* Submit Buttons */}
-            <div className="flex justify-end gap-4">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-4">
               <button
                 type="button"
                 onClick={handleCancel}
-                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+                className="w-full rounded-md bg-gray-200 px-6 py-2 text-gray-700 transition-colors hover:bg-gray-300 sm:w-auto"
               >
                 {t('common.cancel')}
               </button>
               <button
                 type="submit"
                 disabled={createMutation.isPending}
-                className="px-6 py-2 bg-[#111844] text-white rounded-md hover:bg-[#1a237e] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-md bg-[#111844] px-6 py-2 text-white transition-colors hover:bg-[#1a237e] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 {createMutation.isPending ? 'جاري الحفظ...' : 'حفظ الزيارة'}
               </button>

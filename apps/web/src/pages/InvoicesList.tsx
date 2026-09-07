@@ -9,6 +9,7 @@ import { preserveListState } from '../utils/listState';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import Skeleton from '../components/Skeleton';
+import MobileRecordCard, { MobileRecordField } from '../components/MobileRecordCard';
 
 export default function InvoicesList() {
   const { t, i18n } = useTranslation();
@@ -19,7 +20,7 @@ export default function InvoicesList() {
   const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['invoices', statusFilter],
+    queryKey: ['invoices', statusFilter, page],
     queryFn: () => invoicesService.getInvoices(undefined, statusFilter || undefined, page, 50),
   });
 
@@ -83,11 +84,11 @@ export default function InvoicesList() {
         <PageHeader title={t('sidebar.invoices')} breadcrumbs={[{ label: t('sidebar.invoices') }]} />
 
         <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-          <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setPage(1); setSearchParams((current) => { if (e.target.value) current.set('status', e.target.value); else current.delete('status'); current.set('page', '1'); return current; }); }}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844]"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#111844] sm:w-auto"
             >
               <option value="">{t('common.allStatuses')}</option>
               <option value="DRAFT">{t('invoices.statusDraft')}</option>
@@ -107,6 +108,24 @@ export default function InvoicesList() {
           {invoices.length === 0 ? (
             <EmptyState title={t('invoices.noInvoices')} description={t('common.emptyDescription')} />
           ) : (
+            <>
+            <div className="mobile-record-list p-3 md:hidden">
+              {invoices.map((invoice) => (
+                <MobileRecordCard
+                  key={invoice.id}
+                  title={invoice.invoiceNumber}
+                  subtitle={invoice.patient?.fullNameAr}
+                  onClick={() => navigate(preserveListState(`/invoices/${invoice.id}`, location))}
+                  actions={getPaymentBadge(invoice.paymentStatus)}
+                >
+                  <MobileRecordField label={t('invoices.total')} value={`${formatMoney(invoice.total, i18n.language)} ${t('common.currency')}`} />
+                  <MobileRecordField label={t('invoices.remaining')} value={`${formatMoney(invoice.remaining, i18n.language)} ${t('common.currency')}`} />
+                  <MobileRecordField label={t('invoices.invoiceStatus')} value={getStatusBadge(invoice.status)} />
+                  <MobileRecordField label={t('common.date')} value={formatDateUtil(invoice.createdAt, i18n.language)} />
+                </MobileRecordCard>
+              ))}
+            </div>
+            <div className="hidden md:block">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
@@ -141,6 +160,8 @@ export default function InvoicesList() {
                 ))}
               </tbody>
             </table>
+            </div>
+            </>
           )}
           {data?.meta && data.meta.totalPages > 1 && (
             <div className="flex items-center justify-between border-t border-gray-200 px-6 py-4">

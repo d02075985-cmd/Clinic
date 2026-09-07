@@ -12,6 +12,7 @@ import { useToast } from '../contexts/ToastContext';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import Skeleton from '../components/Skeleton';
+import MobileRecordCard, { MobileRecordField } from '../components/MobileRecordCard';
 
 export default function ServicesList() {
   const { t, i18n } = useTranslation();
@@ -78,7 +79,7 @@ export default function ServicesList() {
             setIsActiveFilter(value === '' ? undefined : value === 'true');
             setPage(1);
           }}
-          className="ui-input w-auto"
+          className="ui-input w-full sm:w-auto"
         >
           <option value="">{t('common.allStatuses')}</option>
           <option value="true">{t('services.statusActive')}</option>
@@ -104,6 +105,27 @@ export default function ServicesList() {
 
       {!isLoading && !error && services.length > 0 && (
         <div className="ui-card overflow-hidden p-0">
+          <div className="mobile-record-list p-3 md:hidden">
+            {services.map((service) => (
+              <MobileRecordCard
+                key={service.id}
+                title={service.name}
+                subtitle={service.description}
+                actions={<span className="ui-badge" style={service.isActive ? { background: 'rgba(22,128,60,0.1)', color: 'var(--success)' } : { background: 'rgba(100,116,139,0.1)', color: 'var(--text-secondary)' }}>{service.isActive ? t('services.statusActive') : t('services.statusInactive')}</span>}
+              >
+                <MobileRecordField label={t('services.code')} value={service.code || '—'} />
+                <MobileRecordField label={t('services.price')} value={`${formatMoney(service.currentPrice, i18n.language)} ${t('common.currency')}`} />
+                <MobileRecordField label={t('services.updatedAt')} value={formatDate(service.updatedAt, i18n.language)} />
+                {isAdmin && (
+                  <div className="flex gap-1 pt-1">
+                    <button onClick={() => navigate(`/services/${service.id}/edit`)} aria-label={t('services.editService')} className="icon-btn"><Pencil size={16} strokeWidth={1.75} /></button>
+                    <button onClick={() => setConfirmDeactivate(service)} aria-label={service.isActive ? t('services.deactivateService') : t('services.activateService')} className="icon-btn danger"><Trash2 size={16} strokeWidth={1.75} /></button>
+                  </div>
+                )}
+              </MobileRecordCard>
+            ))}
+          </div>
+          <div className="hidden md:block">
           <table className="ui-table">
             <thead>
               <tr>
@@ -161,6 +183,7 @@ export default function ServicesList() {
               ))}
             </tbody>
           </table>
+          </div>
 
           {meta && (
             <div className="flex items-center justify-between px-5 py-4 border-t border-[#E2E8F0]">

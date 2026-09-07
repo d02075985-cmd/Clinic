@@ -10,6 +10,7 @@ import { preserveListState } from '../utils/listState';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import Skeleton from '../components/Skeleton';
+import MobileRecordCard, { MobileRecordField } from '../components/MobileRecordCard';
 
 function statusBadgeStyle(status: VisitStatus) {
   switch (status) {
@@ -113,8 +114,8 @@ export default function VisitsList() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-3 mb-5">
-        <div className="relative flex-1 min-w-[240px] max-w-md">
+      <div className="mb-5 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="relative w-full flex-1 sm:min-w-[240px] sm:max-w-md">
           <Search size={17} strokeWidth={1.75} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
           <input
             type="text"
@@ -127,10 +128,10 @@ export default function VisitsList() {
         <DateInput
           value={dateFilter}
           onChange={(v) => { setDateFilter(v); setPage(1); setSearchParams((current) => { if (v) current.set('date', v); else current.delete('date'); current.set('page', '1'); return current; }); }}
-          className="ui-input w-auto"
+          className="ui-input w-full sm:w-auto"
           isClearable
         />
-        <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); setSearchParams((current) => { if (e.target.value) current.set('type', e.target.value); else current.delete('type'); current.set('page', '1'); return current; }); }} className="ui-input w-auto">
+        <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); setSearchParams((current) => { if (e.target.value) current.set('type', e.target.value); else current.delete('type'); current.set('page', '1'); return current; }); }} className="ui-input w-full sm:w-auto">
           <option value="">{t('visits.allTypes')}</option>
           <option value="CHECKUP">{t('visits.typeCheckup')}</option>
           <option value="FOLLOW_UP">{t('visits.typeFollowUp')}</option>
@@ -139,7 +140,7 @@ export default function VisitsList() {
         <select
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value as VisitStatus | ''); setPage(1); setSearchParams((current) => { if (e.target.value) current.set('status', e.target.value); else current.delete('status'); current.set('page', '1'); return current; }); }}
-          className="ui-input w-auto"
+          className="ui-input w-full sm:w-auto"
         >
           <option value="">{t('common.allStatuses')}</option>
           {(Object.keys(STATUS_LABELS) as VisitStatus[]).map((s) => (
@@ -164,6 +165,30 @@ export default function VisitsList() {
 
       {!isLoading && !error && visits.length > 0 && (
         <div className="ui-card overflow-hidden p-0">
+          <div className="mobile-record-list p-3 md:hidden">
+            {visits.map((visit) => {
+              const invoice = visit.invoices?.[0];
+              return (
+                <MobileRecordCard
+                  key={visit.id}
+                  title={visit.patient.fullNameAr}
+                  subtitle={`${formatDate(visit.visitDate, i18n.language)} · ${formatTime(visit.visitDate, i18n.language)}`}
+                  actions={<span className="ui-badge" style={statusBadgeStyle(visit.status)}>{STATUS_LABELS[visit.status]}</span>}
+                  onClick={() => navigate(preserveListState(`/visits/${visit.id}`, location))}
+                >
+                  <MobileRecordField label={t('patients.civilId')} value={visit.patient.civilId} />
+                  <MobileRecordField label={t('visits.type')} value={TYPE_LABELS[visit.type]} />
+                  <MobileRecordField label={t('visits.services')} value={invoice?.invoiceItems.length ? invoice.invoiceItems.map((i) => i.serviceNameSnapshot).join(i18n.language === 'ar' ? '، ' : ', ') : '—'} />
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    <button onClick={(event) => { event.stopPropagation(); navigate(preserveListState(`/visits/${visit.id}`, location)); }} aria-label={t('visits.viewDetails')} className="icon-btn"><Eye size={16} strokeWidth={1.75} /></button>
+                    {invoice && <button onClick={(event) => { event.stopPropagation(); navigate(preserveListState(`/invoices/${invoice.id}`, location)); }} aria-label={t('visits.viewInvoice')} className="icon-btn"><ReceiptText size={16} strokeWidth={1.75} /></button>}
+                    {(visit.status === 'SCHEDULED' || visit.status === 'IN_PROGRESS') && <button onClick={(event) => { event.stopPropagation(); handleComplete(visit.id); }} aria-label={t('visits.completeVisit')} className="icon-btn"><CheckCircle2 size={16} strokeWidth={1.75} /></button>}
+                  </div>
+                </MobileRecordCard>
+              );
+            })}
+          </div>
+          <div className="hidden md:block">
           <table className="ui-table">
             <thead>
               <tr>
@@ -224,6 +249,7 @@ export default function VisitsList() {
               })}
             </tbody>
           </table>
+          </div>
 
           {meta && (
             <div className="flex items-center justify-between px-5 py-4 border-t border-[#E2E8F0]">

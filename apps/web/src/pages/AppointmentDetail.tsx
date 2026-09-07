@@ -127,15 +127,15 @@ export default function AppointmentDetail() {
           actions={<button onClick={() => navigate(returnTo)} className="btn-primary px-4 py-2">{t('common.back')}</button>}
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Appointment Details */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="rounded-lg bg-white p-4 shadow-md sm:p-6">
               <div className="space-y-6">
                 {/* Patient Info */}
                 <div className="border-b border-gray-200 pb-6">
                   <h2 className="text-lg font-semibold text-gray-900 mb-4">بيانات المريض</h2>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <label className="text-sm text-gray-500 block mb-1">الاسم</label>
                       <p className="font-medium text-gray-900">{appointment.patient.fullNameAr}</p>
@@ -190,7 +190,7 @@ export default function AppointmentDetail() {
 
           {/* Actions Panel */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-md p-6 sticky top-8">
+            <div className="rounded-lg bg-white p-4 shadow-md sm:sticky sm:top-8 sm:p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">الإجراءات</h3>
               <div className="space-y-3">
                 {canConfirm && (
