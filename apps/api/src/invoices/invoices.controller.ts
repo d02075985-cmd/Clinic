@@ -4,6 +4,7 @@ import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceStatusDto } from './dto/update-invoice-status.dto';
 import { AddChargeDto } from './dto/add-charge.dto';
 import { CreateReplacementDto } from './dto/create-replacement.dto';
+import { FindInvoicesDto } from './dto/find-invoices.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -25,16 +26,14 @@ export class InvoicesController {
   @Get()
   @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
   findAll(
-    @Query('patientId') patientId?: string,
-    @Query('status') status?: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Query() query: FindInvoicesDto,
   ) {
     return this.invoicesService.findAll(
-      patientId,
-      status as InvoiceStatus,
-      page ? parseInt(page, 10) : 1,
-      limit ? parseInt(limit, 10) : 20,
+      query.patientId,
+      query.status as InvoiceStatus,
+      query.page,
+      query.limit,
+      query.search,
     );
   }
 

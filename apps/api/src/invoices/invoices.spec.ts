@@ -378,6 +378,50 @@ describe('Invoices Module Tests (E2E)', () => {
       expect(response.body.data.every((inv: { status: string }) => inv.status === 'DRAFT')).toBe(true);
     });
 
+    it('should search invoices by invoice number', async () => {
+      const invoice = await prisma.invoice.findUniqueOrThrow({ where: { id: testInvoiceId } });
+      const response = await request(app.getHttpServer())
+        .get(`/api/invoices?search=${encodeURIComponent(invoice.invoiceNumber)}`)
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .expect(200);
+
+      expect(response.body.data.some((inv: { id: string }) => inv.id === testInvoiceId)).toBe(true);
+    });
+
+    it('should search invoices by patient name and phone', async () => {
+      const nameResponse = await request(app.getHttpServer())
+        .get('/api/invoices?search=Sara')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .expect(200);
+      const phoneResponse = await request(app.getHttpServer())
+        .get('/api/invoices?search=99912345')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .expect(200);
+
+      expect(nameResponse.body.meta.total).toBeGreaterThan(0);
+      expect(phoneResponse.body.meta.total).toBeGreaterThan(0);
+    });
+
+    it('should combine search with status and return no matches safely', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/invoices?search=does-not-exist&status=ISSUED')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .expect(200);
+
+      expect(response.body.data).toEqual([]);
+      expect(response.body.meta.total).toBe(0);
+    });
+
+    it('should preserve pagination when searching', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/invoices?search=Sara&limit=1&page=2')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .expect(200);
+
+      expect(response.body.meta.limit).toBe(1);
+      expect(response.body.meta.page).toBe(2);
+    });
+
     it('should reject unauthenticated invoice list', async () => {
       await request(app.getHttpServer())
         .get('/api/invoices')
