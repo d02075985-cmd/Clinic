@@ -1106,6 +1106,20 @@ describe('Invoices Module Tests (E2E)', () => {
       });
       expect(allocationsC).toHaveLength(1);
       expect(Number(allocationsC[0].amount)).toBe(20);
+
+      await request(app.getHttpServer())
+        .post(`/api/payments/${payment.body.id}/reverse`)
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send({ reversalNotes: 'Reverse original payment across chain' })
+        .expect(201);
+
+      const balancesAfterReversal = await prisma.invoice.findMany({
+        where: { id: { in: [originalInvoice.body.id, replacementA.body.id, replacementB.body.id, replacementC.body.id] } },
+        select: { total: true, paid: true, remaining: true, paymentStatus: true },
+      });
+      expect(balancesAfterReversal.every((invoice) => Number(invoice.paid) === 0)).toBe(true);
+      expect(balancesAfterReversal.every((invoice) => Number(invoice.remaining) === Number(invoice.total))).toBe(true);
+      expect(balancesAfterReversal.every((invoice) => invoice.paymentStatus === 'UNPAID')).toBe(true);
     });
 
     it('should keep unpaid status when adding charge to unpaid invoice', async () => {

@@ -381,6 +381,7 @@
     "to": "to",
     "totalRevenue": "Total Revenue",
     "totalCollected": "Total Collected",
+    "outstandingAmount": "Outstanding Amount",
     "netProfit": "Net Profit",
     "newPatientsCount": "New Patients",
     "totalAppointments": "Total Appointments",

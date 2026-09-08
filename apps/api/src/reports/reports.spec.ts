@@ -288,5 +288,72 @@ describe('Reports Module Tests (E2E)', () => {
       expect(collectedAfter).toBeLessThan(collectedBefore);
       expect(collectedAfter).toBe(collectedBefore - 40);
     });
+
+    describe('Summary date range', () => {
+      it('should include only in-range issued invoices, payments, and outstanding balances', async () => {
+        const inRangeVisit = await prisma.visit.create({
+          data: { patientId: testPatientId, type: 'OTHER', createdById: adminUserId },
+        });
+        const outOfRangeVisit = await prisma.visit.create({
+          data: { patientId: testPatientId, type: 'OTHER', createdById: adminUserId },
+        });
+        const inRangeInvoice = await prisma.invoice.create({
+          data: {
+            invoiceNumber: 'INV-report-range-in',
+            visitId: inRangeVisit.id,
+            patientId: testPatientId,
+            status: 'ISSUED',
+            issuedAt: new Date('2026-01-15T12:00:00.000Z'),
+            subtotal: 100,
+            total: 100,
+            paid: 60,
+            remaining: 40,
+            paymentStatus: 'PARTIALLY_PAID',
+            createdById: adminUserId,
+            issuedById: adminUserId,
+          },
+        });
+        const outOfRangeInvoice = await prisma.invoice.create({
+          data: {
+            invoiceNumber: 'INV-report-range-out',
+            visitId: outOfRangeVisit.id,
+            patientId: testPatientId,
+            status: 'ISSUED',
+            issuedAt: new Date('2025-12-15T12:00:00.000Z'),
+            subtotal: 200,
+            total: 200,
+            paid: 50,
+            remaining: 150,
+            paymentStatus: 'PARTIALLY_PAID',
+            createdById: adminUserId,
+            issuedById: adminUserId,
+          },
+        });
+        const payment = await prisma.payment.create({
+          data: {
+            invoiceId: inRangeInvoice.id,
+            amount: 60,
+            method: 'CASH',
+            status: 'RECORDED',
+            paymentDate: new Date('2026-01-20T12:00:00.000Z'),
+            recordedById: adminUserId,
+          },
+        });
+
+        const response = await request(app.getHttpServer())
+          .get('/api/reports/summary?from=2026-01-01&to=2026-01-31')
+          .set('Authorization', `Bearer ${adminAccessToken}`)
+          .expect(200);
+
+        expect(response.body.totalRevenue).toBe(100);
+        expect(response.body.totalCollected).toBe(60);
+        expect(response.body.outstandingAmount).toBe(40);
+        expect(response.body.totalInvoices).toBe(1);
+
+        await prisma.payment.delete({ where: { id: payment.id } });
+        await prisma.invoice.deleteMany({ where: { id: { in: [inRangeInvoice.id, outOfRangeInvoice.id] } } });
+        await prisma.visit.deleteMany({ where: { id: { in: [inRangeVisit.id, outOfRangeVisit.id] } } });
+      });
+    });
   });
 });
