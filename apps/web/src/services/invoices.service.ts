@@ -107,11 +107,13 @@ class InvoicesService {
     patientId?: string,
     status?: string,
     page: number = 1,
-    limit: number = 20
+    limit: number = 20,
+    search?: string,
   ): Promise<InvoicesListResponse> {
     const params = new URLSearchParams();
     if (patientId) params.append('patientId', patientId);
     if (status) params.append('status', status);
+    if (search?.trim()) params.append('search', search.trim());
     params.append('page', page.toString());
     params.append('limit', limit.toString());
 

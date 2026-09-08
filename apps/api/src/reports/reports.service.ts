@@ -56,7 +56,7 @@ export class ReportsService {
         _sum: { amount: true },
       }),
       this.prisma.invoice.aggregate({
-        where: { status: 'ISSUED' },
+        where: { status: 'ISSUED', issuedAt: { gte: fromDate, lte: toDate } },
         _sum: { remaining: true },
       }),
       this.prisma.invoice.count({

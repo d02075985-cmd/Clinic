@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { invoicesService, Invoice } from '../services/invoices.service';
@@ -18,10 +18,30 @@ export default function InvoicesList() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || '');
   const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
+  const [searchInput, setSearchInput] = useState(searchParams.get('search') || '');
+  const [search, setSearch] = useState(searchParams.get('search') || '');
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const normalizedSearch = searchInput.trim();
+      if (normalizedSearch === (searchParams.get('search') || '')) {
+        return;
+      }
+      setSearch(normalizedSearch);
+      setPage(1);
+      setSearchParams((current) => {
+        if (normalizedSearch) current.set('search', normalizedSearch);
+        else current.delete('search');
+        current.set('page', '1');
+        return current;
+      });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput, searchParams, setSearchParams]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['invoices', statusFilter, page],
-    queryFn: () => invoicesService.getInvoices(undefined, statusFilter || undefined, page, 50),
+    queryKey: ['invoices', search, statusFilter, page],
+    queryFn: () => invoicesService.getInvoices(undefined, statusFilter || undefined, page, 50, search || undefined),
   });
 
   const invoices = data?.data || [];
@@ -85,6 +105,15 @@ export default function InvoicesList() {
 
         <div className="bg-white rounded-lg shadow-md p-4 mb-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <label className="sr-only" htmlFor="invoice-search">{t('invoices.searchLabel')}</label>
+            <input
+              id="invoice-search"
+              type="search"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder={t('invoices.searchPlaceholder')}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#111844] sm:min-w-64 sm:flex-1"
+            />
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setPage(1); setSearchParams((current) => { if (e.target.value) current.set('status', e.target.value); else current.delete('status'); current.set('page', '1'); return current; }); }}
@@ -96,17 +125,17 @@ export default function InvoicesList() {
               <option value="VOID">{t('invoices.statusVoid')}</option>
             </select>
             <button
-              onClick={() => { setStatusFilter(''); setPage(1); setSearchParams((current) => { current.delete('status'); current.set('page', '1'); return current; }); }}
+              onClick={() => { setStatusFilter(''); setSearchInput(''); setSearch(''); setPage(1); setSearchParams((current) => { current.delete('status'); current.delete('search'); current.set('page', '1'); return current; }); }}
               className="px-3 py-2 text-gray-600 hover:text-gray-900"
             >
-              {t('common.clearFilters')}
+              {t(search ? 'invoices.clearSearch' : 'common.clearFilters')}
             </button>
           </div>
         </div>
 
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           {invoices.length === 0 ? (
-            <EmptyState title={t('invoices.noInvoices')} description={t('common.emptyDescription')} />
+            <EmptyState title={search ? t('invoices.noMatchingInvoices') : t('invoices.noInvoices')} description={search ? t('invoices.clearSearchHint') : t('common.emptyDescription')} />
           ) : (
             <>
             <div className="mobile-record-list p-3 md:hidden">

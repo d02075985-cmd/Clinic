@@ -9,7 +9,7 @@ import { reportsService } from '../services/reports.service';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import DateInput from '../components/DateInput';
-import { formatMoney, moneyToCents } from '../utils/money';
+import { formatMoney } from '../utils/money';
 import { useToast } from '../contexts/ToastContext';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
@@ -144,7 +144,7 @@ export default function ReportsPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
         <KpiCard icon={TrendingUp} label={t('reports.totalRevenue')} value={s ? formatMoney(s.totalRevenue, i18n.language) : '—'} suffix={t('common.currency')} />
         <KpiCard icon={Wallet} label={t('reports.totalCollected')} value={s ? formatMoney(s.totalCollected, i18n.language) : '—'} suffix={t('common.currency')} />
-        <KpiCard icon={AlertCircle} label={t('reports.netProfit')} value={s ? formatMoney(((moneyToCents(s.totalRevenue) || 0) - (moneyToCents(s.outstandingAmount) || 0)) / 100, i18n.language) : '—'} suffix={t('common.currency')} />
+        <KpiCard icon={AlertCircle} label={t('reports.outstandingAmount')} value={s ? formatMoney(s.outstandingAmount, i18n.language) : '—'} suffix={t('common.currency')} />
         <KpiCard icon={UsersRound} label={t('reports.newPatientsCount')} value={s ? s.newPatients : '—'} />
         <KpiCard icon={CalendarDays} label={t('reports.totalAppointments')} value={s ? s.totalAppointments : '—'} />
         <KpiCard icon={ClipboardList} label={t('reports.totalVisits')} value={s ? s.totalVisits : '—'} />

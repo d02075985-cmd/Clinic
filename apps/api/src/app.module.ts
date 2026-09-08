@@ -14,10 +14,12 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ReportsModule } from './reports/reports.module';
 import { BackupModule } from './backup/backup.module';
+import { MaintenanceModule } from './common/maintenance/maintenance.module';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
+    MaintenanceModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
@@ -32,7 +34,7 @@ import { BackupModule } from './backup/backup.module';
 
         // FRONTEND_URL is required in production to prevent CORS fallback to localhost
         if (config.NODE_ENV === 'production') {
-          requiredEnvVars.push('FRONTEND_URL');
+          requiredEnvVars.push('FRONTEND_URL', 'BACKUP_ENCRYPTION_KEY');
         }
 
         const missingEnvVars = requiredEnvVars.filter((envVar) => !config[envVar]);
@@ -41,6 +43,14 @@ import { BackupModule } from './backup/backup.module';
           throw new Error(
             `Missing required environment variables: ${missingEnvVars.join(', ')}`,
           );
+        }
+
+        if (
+          config.NODE_ENV === 'production' &&
+          (!config.FRONTEND_URL.startsWith('https://') ||
+            /localhost|127\.0\.0\.1/i.test(config.FRONTEND_URL))
+        ) {
+          throw new Error('FRONTEND_URL must be a public HTTPS origin in production');
         }
 
         return {

@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException, InternalServerErrorException, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, InternalServerErrorException, OnModuleInit, Optional } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { ChildProcessWithoutNullStreams, spawn, spawnSync } from 'child_process';
 import { createGzip, createGunzip } from 'zlib';
@@ -8,8 +8,10 @@ import * as path from 'path';
 import { pipeline } from 'stream/promises';
 import { Readable, Transform, Writable } from 'stream';
 import { createHash } from 'crypto';
+import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { AuditService } from '../audit/audit.service';
+import { MaintenanceService } from '../common/maintenance/maintenance.service';
 
 export interface BackupManifestEntry {
   filename: string;
@@ -24,6 +26,10 @@ export interface BackupManifestEntry {
     verifiedAt: string;
   };
   protected: boolean;
+  encrypted?: boolean;
+  encryptionAlgorithm?: 'aes-256-gcm';
+  nonce?: string;
+  authTag?: string;
 }
 
 interface BackupManifest {
@@ -42,7 +48,10 @@ export class BackupService implements OnModuleInit {
   // Concurrency control: prevent overlapping backup/restore operations
   private operationInProgress = false;
 
-  constructor(private auditService: AuditService) {}
+  constructor(
+    private auditService: AuditService,
+    @Optional() private maintenanceService: MaintenanceService = new MaintenanceService(),
+  ) {}
 
   private async withOperationLock<T>(operation: () => Promise<T>): Promise<T> {
     // Wait for current operation to complete
@@ -91,6 +100,40 @@ export class BackupService implements OnModuleInit {
   }
   private get retentionDays(): number {
     return parseInt(process.env.BACKUP_RETENTION_DAYS || '14', 10);
+  }
+
+  private get encryptionRequired(): boolean {
+    return process.env.NODE_ENV === 'production' || process.env.BACKUP_ENCRYPTION_REQUIRED === 'true';
+  }
+
+  private getEncryptionKey(): Buffer | undefined {
+    const encoded = process.env.BACKUP_ENCRYPTION_KEY;
+    if (!encoded) {
+      if (this.encryptionRequired) {
+        throw new Error('BACKUP_ENCRYPTION_KEY is required when backup encryption is enabled');
+      }
+      return undefined;
+    }
+    const key = /^[a-f0-9]{64}$/i.test(encoded)
+      ? Buffer.from(encoded, 'hex')
+      : Buffer.from(encoded, 'base64');
+    if (key.length !== 32) {
+      throw new Error('BACKUP_ENCRYPTION_KEY must decode to exactly 32 bytes');
+    }
+    return key;
+  }
+
+  private async encryptFile(sourcePath: string, destinationPath: string, key: Buffer) {
+    const nonce = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', key, nonce);
+    await pipeline(createReadStream(sourcePath), cipher, createWriteStream(destinationPath, { flags: 'wx' }));
+    return { nonce: nonce.toString('base64'), authTag: cipher.getAuthTag().toString('base64') };
+  }
+
+  private async decryptFile(sourcePath: string, destinationPath: string, key: Buffer, nonce: string, authTag: string) {
+    const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(nonce, 'base64'));
+    decipher.setAuthTag(Buffer.from(authTag, 'base64'));
+    await pipeline(createReadStream(sourcePath), decipher, createWriteStream(destinationPath, { flags: 'wx' }));
   }
 
   private getDbConnectionParams() {
@@ -208,17 +251,27 @@ export class BackupService implements OnModuleInit {
         createReadStream(sourcePath, { fd: sourceHandle.fd, autoClose: false }),
         createWriteStream(snapshotPath, { flags: 'wx' }),
       );
-      const [sha256] = await Promise.all([
-        this.calculateSha256(snapshotPath),
-        this.verifyGzip(snapshotPath),
-      ]);
+      const sha256 = await this.calculateSha256(snapshotPath);
       const snapshotStat = await fs.stat(snapshotPath);
       if (snapshotStat.size !== entry.sizeBytes || sha256 !== entry.sha256) {
         throw new BadRequestException('Backup changed during validation');
       }
-      return snapshotPath;
+      if (!entry.encrypted) {
+        await this.verifyGzip(snapshotPath);
+        return snapshotPath;
+      }
+      const key = this.getEncryptionKey();
+      if (!key || !entry.nonce || !entry.authTag) {
+        throw new BadRequestException('Encrypted backup metadata is incomplete');
+      }
+      const decryptedPath = `${snapshotPath}.decrypted`;
+      await this.decryptFile(snapshotPath, decryptedPath, key, entry.nonce, entry.authTag);
+      await this.verifyGzip(decryptedPath);
+      await fs.unlink(snapshotPath).catch(() => undefined);
+      return decryptedPath;
     } catch (err) {
       await fs.unlink(snapshotPath).catch(() => undefined);
+      await fs.unlink(`${snapshotPath}.decrypted`).catch(() => undefined);
       throw err;
     } finally {
       await sourceHandle.close();
@@ -231,6 +284,17 @@ export class BackupService implements OnModuleInit {
     if (!entry) throw new BadRequestException('Backup is not registered in the manifest');
     if (!/^[a-f0-9]{64}$/.test(entry.sha256)) {
       throw new BadRequestException('Backup has an invalid checksum');
+    }
+    if (entry.encrypted && (
+      !entry.filename.endsWith('.sql.gz.enc') ||
+      entry.encryptionAlgorithm !== 'aes-256-gcm' ||
+      !entry.nonce ||
+      !entry.authTag
+    )) {
+      throw new BadRequestException('Encrypted backup metadata is invalid');
+    }
+    if (!entry.encrypted && entry.filename.endsWith('.sql.gz.enc')) {
+      throw new BadRequestException('Encrypted backup metadata is invalid');
     }
 
     const filepath = this.resolveSafePath(entry.filename);
@@ -250,9 +314,17 @@ export class BackupService implements OnModuleInit {
     }
 
     try {
-      const [sha256] = await Promise.all([this.calculateSha256(filepath), this.verifyGzip(filepath)]);
+      const sha256 = await this.calculateSha256(filepath);
       if (sha256 !== entry.sha256) {
         throw new BadRequestException('Backup checksum does not match the manifest');
+      }
+      if (entry.encrypted) {
+        const key = this.getEncryptionKey();
+        if (!key || !entry.nonce || !entry.authTag || entry.encryptionAlgorithm !== 'aes-256-gcm') {
+          throw new BadRequestException('Encrypted backup metadata is invalid');
+        }
+      } else {
+        await this.verifyGzip(filepath);
       }
     } catch (err) {
       if (err instanceof BadRequestException) throw err;
@@ -337,10 +409,13 @@ export class BackupService implements OnModuleInit {
   private async runBackupUnlocked(triggeredBy: 'manual' | 'scheduled' | 'pre-restore-safety', userId?: string, ipAddress?: string, userAgent?: string) {
       await this.ensureBackupDir();
       const { host, port, user, password, database } = this.getDbConnectionParams();
+      const encryptionKey = this.getEncryptionKey();
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `clinic_backup_${timestamp}.sql.gz`;
+      const baseFilename = `clinic_backup_${timestamp}.sql.gz`;
+      const filename = encryptionKey ? `${baseFilename}.enc` : baseFilename;
       const filepath = path.join(this.backupDir, filename);
+      const gzipTemporaryFilepath = path.join(this.backupDir, `${baseFilename}.tmp`);
       const temporaryFilepath = `${filepath}.tmp`;
 
       // --clean --if-exists: the dump includes DROP statements before each
@@ -353,20 +428,27 @@ export class BackupService implements OnModuleInit {
       );
 
       const gzip = createGzip();
-      const out = createWriteStream(temporaryFilepath);
+      const out = createWriteStream(gzipTemporaryFilepath);
 
       let stderr = '';
       pgDump.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
 
       let published = false;
+      let encryptionMetadata: { nonce: string; authTag: string } | undefined;
       try {
         await this.completeBackupProcess(pgDump, gzip, out, () => stderr);
-        const [sha256] = await Promise.all([
-          this.calculateSha256(temporaryFilepath),
-          this.verifyGzip(temporaryFilepath),
+        await this.verifyGzip(gzipTemporaryFilepath);
+        if (encryptionKey) {
+          encryptionMetadata = await this.encryptFile(gzipTemporaryFilepath, temporaryFilepath, encryptionKey);
+          await fs.unlink(gzipTemporaryFilepath);
+        } else {
+          await fs.rename(gzipTemporaryFilepath, filepath);
+        }
+        const [sha256, stat] = await Promise.all([
+          this.calculateSha256(encryptionKey ? temporaryFilepath : filepath),
+          fs.stat(encryptionKey ? temporaryFilepath : filepath),
         ]);
-        const stat = await fs.stat(temporaryFilepath);
-        await fs.rename(temporaryFilepath, filepath);
+        if (encryptionKey) await fs.rename(temporaryFilepath, filepath);
         published = true;
 
         let uploadedToRemote = false;
@@ -396,6 +478,12 @@ export class BackupService implements OnModuleInit {
             verifiedAt: new Date().toISOString(),
           },
           protected: triggeredBy === 'pre-restore-safety',
+          ...(encryptionKey ? {
+            encrypted: true,
+            encryptionAlgorithm: 'aes-256-gcm' as const,
+            nonce: encryptionMetadata!.nonce,
+            authTag: encryptionMetadata!.authTag,
+          } : {}),
         });
         await this.writeManifest(manifest);
         await this.pruneOldBackups();
@@ -419,6 +507,7 @@ export class BackupService implements OnModuleInit {
         });
         out.destroy();
         await outputClosed;
+        await fs.unlink(gzipTemporaryFilepath).catch(() => undefined);
         await fs.unlink(temporaryFilepath).catch(() => undefined);
         if (!published && await fs.access(filepath).then(() => true).catch(() => false)) {
           await fs.unlink(filepath).catch(() => undefined);
@@ -457,7 +546,7 @@ export class BackupService implements OnModuleInit {
 
   private sanitizeFilename(filename: string): string {
     const base = path.basename(filename);
-    if (!/^clinic_backup_[\w-]+\.sql\.gz$/.test(base)) {
+    if (!/^clinic_backup_[\w-]+\.sql\.gz(?:\.enc)?$/.test(base)) {
       throw new BadRequestException('Invalid backup filename');
     }
     // Prevent path traversal: ensure the filename doesn't contain path separators
@@ -485,16 +574,19 @@ export class BackupService implements OnModuleInit {
 
   async restoreBackup(filename: string, userId: string, ipAddress?: string, userAgent?: string) {
     return this.withOperationLock(async () => {
-      const manifest = await this.readManifest();
-      await this.validateRecoveryPoint(filename, manifest);
-
-      // Safety net: always take a fresh backup of the CURRENT state right
-      // before overwriting it, so a restore is never a one-way door.
-      await this.runBackupUnlocked('pre-restore-safety', userId, ipAddress, userAgent);
-      const validatedSnapshot = await this.createVerifiedSnapshot(filename, await this.readManifest());
-
-      let psql: ChildProcessWithoutNullStreams | undefined;
+      this.maintenanceService.enter('restore');
+      let validatedSnapshot: string | undefined;
       try {
+        const manifest = await this.readManifest();
+        await this.validateRecoveryPoint(filename, manifest);
+
+        // Safety net: always take a fresh backup of the CURRENT state right
+        // before overwriting it, so a restore is never a one-way door.
+        await this.runBackupUnlocked('pre-restore-safety', userId, ipAddress, userAgent);
+        validatedSnapshot = await this.createVerifiedSnapshot(filename, await this.readManifest());
+
+        let psql: ChildProcessWithoutNullStreams | undefined;
+        try {
         const { host, port, user, password, database } = this.getDbConnectionParams();
 
         // Use ON_ERROR_STOP to ensure psql stops on first SQL error
@@ -520,19 +612,22 @@ export class BackupService implements OnModuleInit {
         const gunzip = createGunzip();
         const input = createReadStream(validatedSnapshot);
         await this.completeRestoreProcess(psql, input, gunzip, () => stderr, () => stdout);
-      } catch (err) {
+        } catch (err) {
         // Restore failed - pre-restore safety backup remains available
         psql?.kill();
         const message = err instanceof Error ? err.message : String(err);
         this.logger.error(`Restore failed: ${message}`);
         throw new InternalServerErrorException(`Restore failed: ${message}`);
+        } finally {
+          if (validatedSnapshot) await fs.unlink(validatedSnapshot).catch(() => undefined);
+        }
+
+        await this.auditService.logUserAction(userId, 'RESTORE_EXECUTED', 'System', filename, ipAddress, userAgent);
+
+        return { restored: filename, restoredAt: new Date().toISOString() };
       } finally {
-        await fs.unlink(validatedSnapshot).catch(() => undefined);
+        this.maintenanceService.leave();
       }
-
-      await this.auditService.logUserAction(userId, 'RESTORE_EXECUTED', 'System', filename, ipAddress, userAgent);
-
-      return { restored: filename, restoredAt: new Date().toISOString() };
     });
   }
 

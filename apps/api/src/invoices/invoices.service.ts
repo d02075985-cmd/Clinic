@@ -217,10 +217,11 @@ export class InvoicesService {
     });
   }
 
-  async findAll(patientId?: string, status?: InvoiceStatus, page: number = 1, limit: number = 20) {
+  async findAll(patientId?: string, status?: InvoiceStatus, page: number = 1, limit: number = 20, search?: string) {
     const skip = (page - 1) * limit;
 
-    const where: { patientId?: string; status?: InvoiceStatus } = {};
+    const normalizedSearch = search?.trim();
+    const where: Prisma.InvoiceWhereInput = {};
 
     if (patientId) {
       where.patientId = patientId;
@@ -228,6 +229,14 @@ export class InvoicesService {
 
     if (status) {
       where.status = status;
+    }
+    if (normalizedSearch) {
+      where.OR = [
+        { invoiceNumber: { contains: normalizedSearch } },
+        { patient: { fullNameAr: { contains: normalizedSearch, mode: 'insensitive' } } },
+        { patient: { fullNameEn: { contains: normalizedSearch, mode: 'insensitive' } } },
+        { patient: { phone: { contains: normalizedSearch, mode: 'insensitive' } } },
+      ];
     }
 
     const [invoices, total] = await Promise.all([

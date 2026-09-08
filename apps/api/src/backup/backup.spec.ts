@@ -523,6 +523,36 @@ describe('BackupModule', () => {
       });
     });
 
+    describe('BackupService - Encryption', () => {
+      it('should encrypt and decrypt backup content with authenticated integrity', async () => {
+        const directory = await mkdtemp(`${tmpdir()}/clinic-backup-encryption-`);
+        const sourcePath = `${directory}/source.gz`;
+        const encryptedPath = `${directory}/source.gz.enc`;
+        const decryptedPath = `${directory}/source.restored.gz`;
+        const content = gzipSync(Buffer.from('sensitive clinic backup data'));
+        const key = Buffer.alloc(32, 9);
+        await writeFile(sourcePath, content);
+
+        const metadata = await backupService['encryptFile'](sourcePath, encryptedPath, key);
+        expect(await readFile(encryptedPath)).not.toEqual(content);
+        await backupService['decryptFile'](encryptedPath, decryptedPath, key, metadata.nonce, metadata.authTag);
+        expect(await readFile(decryptedPath)).toEqual(content);
+        await expect(
+          backupService['decryptFile'](encryptedPath, `${directory}/wrong.gz`, Buffer.alloc(32, 8), metadata.nonce, metadata.authTag),
+        ).rejects.toThrow();
+
+        await rm(directory, { recursive: true, force: true });
+      });
+
+      it('should reject invalid encryption material and missing required production configuration', () => {
+        process.env.BACKUP_ENCRYPTION_KEY = 'invalid';
+        expect(() => backupService['getEncryptionKey']()).toThrow('exactly 32 bytes');
+        delete process.env.BACKUP_ENCRYPTION_KEY;
+        process.env.NODE_ENV = 'production';
+        expect(() => backupService['getEncryptionKey']()).toThrow('required');
+      });
+    });
+
     it('should serialize backup operations', async () => {
       const service = new BackupService({ logUserAction: jest.fn() } as any);
       // Mock backup operation to take time
