@@ -11,7 +11,9 @@
     "dev": "concurrently \"npm run dev:web\" \"npm run dev:api\"",
     "dev:web": "npm run dev --workspace=apps/web",
     "dev:api": "npm run dev --workspace=apps/api",
-    "build": "npm run build --workspaces",
+    "prisma:generate": "npm run prisma:generate --workspace=apps/api",
+    "build": "npm run prisma:generate && npm run build --workspace=packages/shared && npm run build:api && npm run build:web",
+    "build:shared": "npm run build --workspace=packages/shared",
     "build:web": "npm run build --workspace=apps/web",
     "build:api": "npm run build --workspace=apps/api",
     "lint": "npm run lint --workspaces"

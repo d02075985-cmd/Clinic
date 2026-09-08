@@ -14,8 +14,12 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run build
-      - run: npm run prisma:generate --workspace=apps/api
+      - run: npm run prisma:generate
+      - run: npm run lint --workspace=apps/api
+      - run: npm run lint --workspace=apps/web
+      - run: npm run build:shared
+      - run: npm run build:api
+      - run: npm run build:web
       - run: npm exec --workspace=apps/api prisma validate -- --schema=prisma/schema.prisma
         env:
           DATABASE_URL: postgresql://clinic_user:clinic_password@localhost:5432/clinic_db
