@@ -14,10 +14,12 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ReportsModule } from './reports/reports.module';
 import { BackupModule } from './backup/backup.module';
+import { MaintenanceModule } from './common/maintenance/maintenance.module';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
+    MaintenanceModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
