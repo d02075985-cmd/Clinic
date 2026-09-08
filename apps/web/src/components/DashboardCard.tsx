@@ -17,7 +17,7 @@ export default function DashboardCard({ title, description, icon: Icon, onClick,
   return (
     <button
       onClick={onClick}
-      className="ui-card p-5 text-right w-full hover:shadow-[var(--shadow-soft-lg)] transition-shadow duration-150 group"
+      className="ui-card w-full p-5 text-start transition-shadow duration-150 group hover:shadow-[var(--shadow-soft-lg)]"
     >
       <div className={`w-11 h-11 rounded-full flex items-center justify-center mb-4 ${iconBg}`}>
         <Icon size={20} strokeWidth={1.75} />
@@ -31,5 +31,4 @@ export default function DashboardCard({ title, description, icon: Icon, onClick,
     </button>
   );
 }
-
 

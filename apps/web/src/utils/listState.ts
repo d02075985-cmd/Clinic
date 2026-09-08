@@ -1,5 +1,8 @@
 export function preserveListState(path: string, location: { pathname: string; search: string }) {
-  const returnTo = `${location.pathname}${location.search}`;
+  const normalizedSearch = location.search
+    ? location.search.startsWith('?') ? location.search : `?${location.search}`
+    : '';
+  const returnTo = `${location.pathname}${normalizedSearch}`;
   return `${path}${path.includes('?') ? '&' : '?'}returnTo=${encodeURIComponent(returnTo)}`;
 }
 

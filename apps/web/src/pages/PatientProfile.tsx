@@ -31,17 +31,17 @@ export default function PatientProfile() {
     enabled: !!id,
   });
 
-  const { data: visitsData } = useQuery({
+  const { data: visitsData, isLoading: visitsLoading } = useQuery({
     queryKey: ['patientVisits', id],
     queryFn: () => visitsService.getPatientVisits(id!),
     enabled: !!id,
   });
-  const { data: invoicesData } = useQuery({
+  const { data: invoicesData, isLoading: invoicesLoading } = useQuery({
     queryKey: ['patientInvoices', id],
     queryFn: () => invoicesService.getInvoices(id!, undefined, 1, 50),
     enabled: !!id,
   });
-  const { data: appointmentsData } = useQuery({
+  const { data: appointmentsData, isLoading: appointmentsLoading } = useQuery({
     queryKey: ['patientAppointments', id],
     queryFn: () => appointmentsService.getAppointments(undefined, undefined, id!, 1, 50),
     enabled: !!id,
@@ -57,6 +57,12 @@ export default function PatientProfile() {
 
   const visits = visitsData?.data || [];
   const outstandingAmount = (invoicesData?.data || []).reduce((total, invoice) => total + Number(invoice.remaining || 0), 0);
+  const lastVisit = visits
+    .filter((visit) => visit.visitDate)
+    .sort((a, b) => new Date(b.visitDate).getTime() - new Date(a.visitDate).getTime())[0];
+  const nextAppointment = (appointmentsData?.data || [])
+    .filter((appointment) => new Date(appointment.scheduledAt).getTime() >= Date.now() && appointment.status !== 'CANCELLED')
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0];
 
   if (isLoading) {
     return (
@@ -186,10 +192,14 @@ export default function PatientProfile() {
             <div className="bg-white rounded-lg shadow-md">
               {/* Tabs */}
               <div className="border-b border-gray-200">
-                <nav className="grid grid-cols-2 sm:flex sm:flex-wrap" aria-label="Patient sections">
+                <nav className="grid grid-cols-2 sm:flex sm:flex-wrap" aria-label={t('patients.sections')} role="tablist">
                   {tabs.map((tab) => (
                     <button
                       key={tab.id}
+                      id={`patient-tab-${tab.id}`}
+                      role="tab"
+                      aria-selected={activeTab === tab.id}
+                      aria-controls={`patient-panel-${tab.id}`}
                       onClick={() => setActiveTab(tab.id)}
                       className={`px-3 py-3 text-sm font-medium transition-colors sm:px-6 sm:py-4 ${
                         activeTab === tab.id
@@ -206,31 +216,33 @@ export default function PatientProfile() {
               {/* Tab Content */}
               <div className="p-6">
                 {activeTab === 'overview' && (
-                  <div className="space-y-4">
+                  <div id="patient-panel-overview" role="tabpanel" aria-labelledby="patient-tab-overview" className="space-y-4">
                     <h3 className="text-lg font-semibold text-gray-900">{t('patients.tabOverview')}</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="bg-gray-50 p-4 rounded">
                         <p className="text-sm text-gray-500">{t('patients.lastVisit')}</p>
-                        <p className="text-lg font-semibold text-gray-900">-</p>
+                        <p className="text-lg font-semibold text-gray-900">{visitsLoading ? t('common.loading') : lastVisit ? formatDateTime(lastVisit.visitDate, i18n.language) : '—'}</p>
                       </div>
                       <div className="bg-gray-50 p-4 rounded">
                         <p className="text-sm text-gray-500">{t('patients.outstandingBalance')}</p>
-                        <p className="text-lg font-semibold text-gray-900">0 {t('common.currency')}</p>
+                        <p className={`text-lg font-semibold ${outstandingAmount > 0 ? 'text-[#C4362B]' : 'text-[var(--success)]'}`}>
+                          {invoicesLoading ? t('common.loading') : `${formatMoney(outstandingAmount, i18n.language)} ${t('common.currency')}`}
+                        </p>
                       </div>
                       <div className="bg-gray-50 p-4 rounded">
                         <p className="text-sm text-gray-500">{t('patients.nextVisit')}</p>
-                        <p className="text-lg font-semibold text-gray-900">-</p>
+                        <p className="text-lg font-semibold text-gray-900">{appointmentsLoading ? t('common.loading') : nextAppointment ? formatDateTime(nextAppointment.scheduledAt, i18n.language) : '—'}</p>
                       </div>
                       <div className="bg-gray-50 p-4 rounded">
                         <p className="text-sm text-gray-500">{t('patients.totalVisits')}</p>
-                        <p className="text-lg font-semibold text-gray-900">0</p>
+                        <p className="text-lg font-semibold text-gray-900">{visitsLoading ? t('common.loading') : visits.length}</p>
                       </div>
                     </div>
                   </div>
                 )}
 
                 {activeTab === 'visits' && (
-                  <div>
+                  <div id="patient-panel-visits" role="tabpanel" aria-labelledby="patient-tab-visits">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-lg font-semibold text-gray-900">{t('patients.visitsHistory')}</h3>
                       <button
@@ -300,7 +312,7 @@ export default function PatientProfile() {
                 )}
 
                 {activeTab === 'invoices' && (
-                  <div>
+                  <div id="patient-panel-invoices" role="tabpanel" aria-labelledby="patient-tab-invoices">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('patients.invoicesHistory')}</h3>
                     {(invoicesData?.data || []).length === 0 ? <EmptyState title={t('patients.noInvoicesRecorded')} /> : (
                       <div className="space-y-2">{invoicesData?.data.map((invoice) => (
@@ -313,7 +325,7 @@ export default function PatientProfile() {
                 )}
 
                 {activeTab === 'payments' && (
-                  <div>
+                  <div id="patient-panel-payments" role="tabpanel" aria-labelledby="patient-tab-payments">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('patients.paymentsHistory')}</h3>
                     {payments.length === 0 ? <EmptyState title={t('patients.noPaymentsRecorded')} /> : (
                       <div className="space-y-2">{payments.map((payment) => (
@@ -326,7 +338,7 @@ export default function PatientProfile() {
                 )}
 
                 {activeTab === 'appointments' && (
-                  <div>
+                  <div id="patient-panel-appointments" role="tabpanel" aria-labelledby="patient-tab-appointments">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('patients.appointmentsHistory')}</h3>
                     {(appointmentsData?.data || []).length === 0 ? <EmptyState title={t('patients.noAppointmentsRecorded')} /> : (
                       <div className="space-y-2">{appointmentsData?.data.map((appointment) => (

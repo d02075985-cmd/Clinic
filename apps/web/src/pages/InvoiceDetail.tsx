@@ -159,6 +159,7 @@ export default function InvoiceDetail() {
   };
 
   const canRecordPayment = invoice.status === 'ISSUED' && invoice.paymentStatus !== 'PAID';
+  const remainingIsPaid = Number(invoice.remaining) <= 0;
 
   return (
     <div className="min-h-screen bg-[#F6F7FA]">
@@ -327,7 +328,9 @@ export default function InvoiceDetail() {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">{t('invoices.remaining')}</span>
-              <span className="font-bold text-[#C4362B]">{formatMoney(invoice.remaining, i18n.language)} {t('common.currency')}</span>
+              <span className={`font-bold ${remainingIsPaid ? 'text-[var(--success)]' : 'text-[#C4362B]'}`}>
+                {formatMoney(invoice.remaining, i18n.language)} {t('common.currency')}
+              </span>
             </div>
           </div>
         </div>
@@ -359,6 +362,12 @@ export default function InvoiceDetail() {
         {canRecordPayment && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 className="text-lg font-bold text-[#111844] mb-4">{t('payments.recordPayment')}</h2>
+            <div id="payment-amount-guidance" className="mb-4 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-[#173B78]">
+              <span className="font-semibold">{t('invoices.remaining')}:</span>{' '}
+              {formatMoney(invoice.remaining, i18n.language)} {t('common.currency')}
+              <span className="mx-1">·</span>
+              {t('payments.amountGuidance')}
+            </div>
             <form onSubmit={handleRecordPayment} className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
               <div className="flex-1 min-w-[120px]">
                 <label className="block text-sm text-gray-600 mb-1">{t('payments.amount')}</label>
@@ -369,6 +378,7 @@ export default function InvoiceDetail() {
                   min="0.01"
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
+                  aria-describedby="payment-amount-guidance"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844]"
                   required
                 />

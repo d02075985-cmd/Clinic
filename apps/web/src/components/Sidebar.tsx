@@ -72,7 +72,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="text-[11px] text-white/60 mt-0.5">Specialized Clinics Center</div>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">
         {items.map((item) => {
           const active = isActive(item.path);
           const Icon = item.icon;
@@ -82,8 +82,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               onClick={() => handleNavigate(item.path)}
               className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-[14px] transition-colors ${
                 active
-                  ? 'bg-white/12 text-white font-semibold'
-                  : 'text-white/70 hover:bg-white/8 hover:text-white'
+                  ? 'bg-white text-[#102F63] font-semibold shadow-sm'
+                  : 'text-white/70 hover:bg-white/10 hover:text-white'
               }`}
             >
               <Icon size={18} strokeWidth={1.75} />

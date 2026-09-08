@@ -11,6 +11,12 @@ import { useToast } from '../contexts/ToastContext';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
 
+const VISIT_TYPES = [
+  { value: 'CHECKUP' as const, labelKey: 'visits.typeCheckup' },
+  { value: 'FOLLOW_UP' as const, labelKey: 'visits.typeFollowUp' },
+  { value: 'OTHER' as const, labelKey: 'visits.typeOther' },
+];
+
 export default function VisitForm() {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -74,7 +80,7 @@ export default function VisitForm() {
     },
     onError: (error: Error) => {
       showToast({ type: 'error', message: error.message || t('visits.createError') });
-      setErrors({ general: error.message || 'فشل في إنشاء الزيارة' });
+      setErrors({ general: error.message || t('visits.createError') });
     },
   });
 
@@ -82,22 +88,22 @@ export default function VisitForm() {
     const newErrors: Record<string, string> = {};
 
     if (!formData.patientId) {
-      newErrors.patientId = 'المريض مطلوب';
+      newErrors.patientId = t('visits.patientRequired');
     }
 
     if (!formData.type) {
-      newErrors.type = 'نوع الزيارة مطلوب';
+      newErrors.type = t('visits.typeRequired');
     }
 
     if (formData.visitDate) {
       const visitDate = new Date(formData.visitDate);
       if (isNaN(visitDate.getTime())) {
-        newErrors.visitDate = 'تاريخ ووقت غير صالح';
+        newErrors.visitDate = t('visits.invalidDateTime');
       }
     }
 
     if (formData.notes && formData.notes.length > 1000) {
-      newErrors.notes = 'الملاحظات يجب أن لا تتجاوز 1000 حرف';
+      newErrors.notes = t('visits.notesTooLong');
     }
 
     setErrors(newErrors);
@@ -111,7 +117,12 @@ export default function VisitForm() {
       return;
     }
 
-    createMutation.mutate(formData);
+    const { appointmentId, ...visitData } = formData;
+    createMutation.mutate({
+      ...visitData,
+      ...(appointmentId ? { appointmentId } : {}),
+      type: VISIT_TYPES.find((visitType) => visitType.value === formData.type)?.value || 'CHECKUP',
+    });
   };
 
   const handlePatientSelect = (patientId: string, patientName: string) => {
@@ -147,7 +158,7 @@ export default function VisitForm() {
             {/* Patient Selection */}
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                المريض <span className="text-red-500">*</span>
+                {t('visits.patient')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -158,7 +169,7 @@ export default function VisitForm() {
                 }}
                 onBlur={validateForm}
                 onFocus={() => setShowPatientDropdown(true)}
-                placeholder="ابحث بالاسم أو الرقم المدني أو الهاتف..."
+                placeholder={t('visits.patientSearchPlaceholder')}
                 className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844] ${
                   errors.patientId ? 'border-red-500' : 'border-gray-300'
                 }`}
@@ -191,7 +202,7 @@ export default function VisitForm() {
             {/* Visit Type */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                نوع الزيارة <span className="text-red-500">*</span>
+                {t('visits.type')} <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.type}
@@ -201,9 +212,9 @@ export default function VisitForm() {
                   errors.type ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
-                <option value="CHECKUP">كشف</option>
-                <option value="FOLLOW_UP">متابعة</option>
-                <option value="OTHER">أخرى</option>
+                {VISIT_TYPES.map((visitType) => (
+                  <option key={visitType.value} value={visitType.value}>{t(visitType.labelKey)}</option>
+                ))}
               </select>
               {errors.type && (
                 <p className="mt-1 text-sm text-red-600">{errors.type}</p>
@@ -213,7 +224,7 @@ export default function VisitForm() {
             {/* Date and Time */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                التاريخ والوقت
+                {t('visits.dateTimeLabel')}
               </label>
               <input
                 type="datetime-local"
@@ -231,24 +242,25 @@ export default function VisitForm() {
             {/* Linked Appointment */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                الموعد المرتبط (اختياري)
+                {t('visits.linkedAppointment')}
               </label>
               <input
                 type="text"
-                value={prefillAppointmentId ? 'موعد مرتبط' : ''}
+                value={prefillAppointmentId ? t('visits.linkedAppointmentValue') : ''}
                 disabled={!!prefillAppointmentId}
-                placeholder="معرف الموعد (اختياري)"
+                readOnly
+                placeholder={t('visits.appointmentIdPlaceholder')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none"
               />
               {prefillAppointmentId && (
-                <p className="mt-1 text-sm text-gray-500">تم ربط الموعد تلقائيًا</p>
+                <p className="mt-1 text-sm text-gray-500">{t('visits.appointmentAutoLinked')}</p>
               )}
             </div>
 
             {/* Diagnosis */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                التشخيص
+                {t('visits.diagnosisLabel')}
               </label>
               <input
                 type="text"
@@ -256,14 +268,14 @@ export default function VisitForm() {
                 onChange={(e) => setFormData((prev) => ({ ...prev, diagnosis: e.target.value }))}
                 maxLength={500}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844]"
-                placeholder="التشخيص (يظهر في فاتورة الزيارة)"
+                placeholder={t('visits.diagnosisPlaceholder')}
               />
             </div>
 
             {/* Notes */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                ملاحظات
+                {t('visits.notesLabel')}
               </label>
               <textarea
                 value={formData.notes}
@@ -273,7 +285,7 @@ export default function VisitForm() {
                 className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844] ${
                   errors.notes ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="أضف ملاحظات إدارية اختيارية..."
+                placeholder={t('visits.notesPlaceholder')}
               />
               {errors.notes && (
                 <p className="mt-1 text-sm text-red-600">{errors.notes}</p>
@@ -294,7 +306,7 @@ export default function VisitForm() {
                 disabled={createMutation.isPending}
                 className="w-full rounded-md bg-[#111844] px-6 py-2 text-white transition-colors hover:bg-[#1a237e] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
-                {createMutation.isPending ? 'جاري الحفظ...' : 'حفظ الزيارة'}
+                {createMutation.isPending ? t('common.saving') : t('visits.saveVisit')}
               </button>
             </div>
           </form>

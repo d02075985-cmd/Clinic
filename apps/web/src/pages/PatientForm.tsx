@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { patientsService, CreatePatientDto, UpdatePatientDto } from '../services/patients.service';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +18,10 @@ interface PatientFormProps {
 export default function PatientForm({ patientId }: PatientFormProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { id: routePatientId } = useParams<{ id: string }>();
+  const pathPatientId = location.pathname.match(/^\/patients\/([^/]+)\/edit$/)?.[1];
+  const resolvedPatientId = patientId || routePatientId || pathPatientId;
   const [searchParams] = useSearchParams();
   const returnTo = getReturnTo(searchParams.toString(), '/patients');
   const { showToast } = useToast();
@@ -33,9 +37,9 @@ export default function PatientForm({ patientId }: PatientFormProps) {
 
   // Fetch patient data if editing
   const { data: patient, isLoading: isLoadingPatient } = useQuery({
-    queryKey: ['patient', patientId],
-    queryFn: () => patientsService.getPatient(patientId!),
-    enabled: !!patientId,
+    queryKey: ['patient', resolvedPatientId],
+    queryFn: () => patientsService.getPatient(resolvedPatientId!),
+    enabled: !!resolvedPatientId,
   });
   const initialFormData = { civilId: '', fullNameAr: '', fullNameEn: '', phone: '', dateOfBirth: '', address: '' };
   const baseline = patient ? {
@@ -133,8 +137,8 @@ export default function PatientForm({ patientId }: PatientFormProps) {
       dateOfBirth: formData.dateOfBirth ? `${formData.dateOfBirth}T00:00:00.000Z` : undefined,
     };
 
-    if (patientId) {
-      updateMutation.mutate({ id: patientId, data: payload as UpdatePatientDto });
+    if (resolvedPatientId) {
+      updateMutation.mutate({ id: resolvedPatientId, data: payload as UpdatePatientDto });
     } else {
       createMutation.mutate(payload as CreatePatientDto);
     }
@@ -169,8 +173,8 @@ export default function PatientForm({ patientId }: PatientFormProps) {
     <div className="min-h-screen bg-[#F6F7FA]">
       <div className="container mx-auto px-4 py-8">
         <PageHeader
-          title={patientId ? t('patients.editPatientTitle') : t('patients.addNew')}
-          breadcrumbs={[{ label: t('sidebar.patients'), href: returnTo }, { label: patientId ? t('patients.editPatientTitle') : t('patients.addNew') }]}
+          title={resolvedPatientId ? t('patients.editPatientTitle') : t('patients.addNew')}
+          breadcrumbs={[{ label: t('sidebar.patients'), href: returnTo }, { label: resolvedPatientId ? t('patients.editPatientTitle') : t('patients.addNew') }]}
           backTo={returnTo}
           onBack={() => requestNavigation(() => navigate(returnTo))}
           actions={<button onClick={() => requestNavigation(() => navigate(returnTo))} className="btn-primary px-4 py-2">{t('common.cancel')}</button>}
@@ -237,7 +241,7 @@ export default function PatientForm({ patientId }: PatientFormProps) {
                 maxLength={255}
                 className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844] ${errors.fullNameEn ? 'border-red-500' : 'border-gray-300'
                   }`}
-                placeholder="Enter name in English"
+                placeholder={t('patients.nameEnPlaceholder')}
               />
               {errors.fullNameEn && (
                 <p className="mt-1 text-sm text-red-600">{errors.fullNameEn}</p>
@@ -298,7 +302,7 @@ export default function PatientForm({ patientId }: PatientFormProps) {
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-4">
               <button
                 type="button"
-                onClick={() => navigate(returnTo)}
+                onClick={() => requestNavigation(() => navigate(returnTo))}
                 className="w-full rounded-md bg-gray-200 px-6 py-2 text-gray-700 transition-colors hover:bg-gray-300 sm:w-auto"
               >
                 {t('common.cancel')}
@@ -310,7 +314,7 @@ export default function PatientForm({ patientId }: PatientFormProps) {
               >
                 {createMutation.isPending || updateMutation.isPending
                   ? t('common.saving')
-                  : patientId
+                  : resolvedPatientId
                     ? t('common.saveChanges')
                     : t('patients.addPatientBtn')}
               </button>

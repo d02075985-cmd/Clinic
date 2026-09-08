@@ -29,24 +29,6 @@ const DEFAULT_NOTIFICATION_PREFS = {
   backupStatus: true,
 };
 
-const AUDIT_ACTION_LABELS: Record<string, string> = {
-  CREATE: 'إنشاء',
-  UPDATE: 'تعديل',
-  UPDATE_STATUS: 'تغيير حالة',
-  ACTIVATE: 'تفعيل',
-  DEACTIVATE: 'تعطيل',
-  DELETE: 'حذف',
-};
-const AUDIT_ENTITY_LABELS: Record<string, string> = {
-  Patient: 'مريضة',
-  Visit: 'زيارة',
-  Appointment: 'موعد',
-  Service: 'خدمة',
-  Invoice: 'فاتورة',
-  Payment: 'دفعة',
-  User: 'مستخدم',
-};
-
 function formatDateTime(dateString: string): string {
   return new Date(dateString).toLocaleString('ar-KW', {
     year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
@@ -127,7 +109,7 @@ export default function SettingsPage() {
 
 // ---------- النسخ الاحتياطي والاستعادة ----------
 function BackupSection() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { showToast } = useToast();
   const [status, setStatus] = useState<BackupStatus | null>(null);
   const [backups, setBackups] = useState<BackupEntry[]>([]);
@@ -144,7 +126,7 @@ function BackupSection() {
       setStatus(s);
       setBackups(b);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'فشل تحميل بيانات النسخ الاحتياطي');
+      setError(err instanceof Error ? err.message : t('settings.backupLoadError'));
     } finally {
       setLoading(false);
     }
@@ -160,7 +142,7 @@ function BackupSection() {
       await load();
       showToast({ type: 'success', message: t('feedback.backupCreated') });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'فشل إنشاء النسخة الاحتياطية');
+      setError(err instanceof Error ? err.message : t('settings.backupCreateError'));
       showToast({ type: 'error', message: err instanceof Error ? err.message : t('feedback.backupFailed') });
     } finally {
       setRunning(false);
@@ -177,7 +159,7 @@ function BackupSection() {
       await load();
       showToast({ type: 'success', message: t('feedback.backupRestored') });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'فشل استعادة النسخة الاحتياطية');
+      setError(err instanceof Error ? err.message : t('settings.backupRestoreError'));
       showToast({ type: 'error', message: err instanceof Error ? err.message : t('feedback.restoreFailed') });
     } finally {
       setRestoring(false);
@@ -190,11 +172,11 @@ function BackupSection() {
     <div className="ui-card p-5">
       <h2 className="text-[16px] font-bold text-[#102F63] mb-1 flex items-center gap-2">
         <DatabaseBackup size={17} strokeWidth={1.75} />
-        النسخ الاحتياطي والاستعادة
+        {t('settings.backupTitle')}
       </h2>
       <p className="text-xs text-[#94A3B8] mb-5">
-        نسخة احتياطية تلقائية يوميًا الساعة 3:00 صباحًا، بالاحتفاظ بآخر {status?.retentionDays ?? '—'} يوم.
-        {status && !status.remoteStorageConfigured && ' التخزين الخارجي (خارج السيرفر) غير مفعّل حاليًا — النسخ محفوظة على السيرفر نفسه فقط.'}
+        {t('settings.backupIntro', { days: status?.retentionDays ?? '—' })}
+        {status && !status.remoteStorageConfigured && ` ${t('settings.remoteStorageNotConfigured')}`}
       </p>
 
       {error && <div className="mb-4 px-3 py-2 bg-red-50 border border-red-100 text-[#C4362B] rounded-lg text-sm">{error}</div>}
@@ -204,23 +186,23 @@ function BackupSection() {
       ) : (
         <div className="grid md:grid-cols-2 gap-4 mb-5">
           <div className="p-4 rounded-xl border border-[#E2E8F0]">
-            <div className="text-xs text-[#94A3B8] mb-1">آخر نسخة احتياطية</div>
+            <div className="text-xs text-[#94A3B8] mb-1">{t('settings.lastBackup')}</div>
             <div className="font-bold text-[#1F2430] text-sm">
-              {status?.lastBackup ? new Date(status.lastBackup.createdAt).toLocaleString('ar-KW') : 'لا توجد نسخ سابقة'}
+              {status?.lastBackup ? new Date(status.lastBackup.createdAt).toLocaleString(i18n.language === 'ar' ? 'ar-KW' : 'en-KW') : t('settings.noPreviousBackups')}
             </div>
           </div>
           <div className="p-4 rounded-xl border border-[#E2E8F0]">
-            <div className="text-xs text-[#94A3B8] mb-1">التخزين الخارجي</div>
+            <div className="text-xs text-[#94A3B8] mb-1">{t('settings.remoteStorage')}</div>
             <div className={`font-bold text-sm ${status?.remoteStorageConfigured ? 'text-[var(--success)]' : 'text-[#94A3B8]'}`}>
-              {status?.remoteStorageConfigured ? 'مفعّل' : 'غير مفعّل'}
+              {status?.remoteStorageConfigured ? t('settings.enabled') : t('settings.notEnabledYet')}
             </div>
           </div>
           <div className="p-4 rounded-xl border border-[#E2E8F0]">
-            <div className="text-xs text-[#94A3B8] mb-1">عدد النسخ المحفوظة</div>
+            <div className="text-xs text-[#94A3B8] mb-1">{t('settings.savedBackupsCount')}</div>
             <div className="font-bold text-[#1F2430]">{status?.totalBackups ?? 0}</div>
           </div>
           <div className="p-4 rounded-xl border border-[#E2E8F0]">
-            <div className="text-xs text-[#94A3B8] mb-1">المساحة المستخدمة</div>
+            <div className="text-xs text-[#94A3B8] mb-1">{t('settings.spaceUsed')}</div>
             <div className="font-bold text-[#1F2430]">{status ? formatSize(status.totalSizeBytes) : '—'}</div>
           </div>
         </div>
@@ -228,20 +210,20 @@ function BackupSection() {
 
       <button onClick={handleRunBackup} disabled={running} className="btn-primary px-4 py-2.5 text-sm mb-5 flex items-center gap-2">
         {running ? <Loader2 size={16} className="animate-spin" /> : null}
-        {running ? 'جارِ إنشاء النسخة...' : 'إنشاء نسخة احتياطية الآن'}
+        {running ? t('settings.creatingBackup') : t('settings.createBackupNow')}
       </button>
 
-      <h3 className="text-sm font-bold text-[#102F63] mb-3">النسخ المتاحة للاستعادة</h3>
+      <h3 className="text-sm font-bold text-[#102F63] mb-3">{t('settings.availableBackups')}</h3>
       {backups.length === 0 && !loading && <EmptyState title={t('settings.noBackupsYet')} />}
       {backups.length > 0 && (
         <div className="space-y-2">
           {backups.map((b) => (
             <div key={b.filename} className="flex items-center justify-between p-3 rounded-lg border border-[#E2E8F0] text-sm">
               <div>
-                <div className="text-[#1F2430]">{new Date(b.createdAt).toLocaleString('ar-KW')}</div>
-                <div className="text-xs text-[#94A3B8]">{formatSize(b.sizeBytes)} · {b.triggeredBy === 'manual' ? 'يدوي' : b.triggeredBy === 'scheduled' ? 'تلقائي' : 'نسخة أمان قبل استعادة'}{b.uploadedToRemote ? ' · مرفوعة خارجيًا' : ''}</div>
+                <div className="text-[#1F2430]">{new Date(b.createdAt).toLocaleString(i18n.language === 'ar' ? 'ar-KW' : 'en-KW')}</div>
+                <div className="text-xs text-[#94A3B8]">{formatSize(b.sizeBytes)} · {b.triggeredBy === 'manual' ? t('settings.triggerManual') : b.triggeredBy === 'scheduled' ? t('settings.triggerScheduled') : t('settings.triggerPreRestore')}{b.uploadedToRemote ? ` · ${t('settings.uploadedRemotely')}` : ''}</div>
               </div>
-              <button onClick={() => setConfirmRestore(b)} className="text-[#C4362B] hover:underline">استعادة</button>
+              <button onClick={() => setConfirmRestore(b)} className="text-[#C4362B] hover:underline">{t('settings.restore')}</button>
             </div>
           ))}
         </div>
@@ -283,15 +265,16 @@ function SettingsCard({
 // ---------- الصلاحيات والأدوار ----------
 function RolesSection({ currentUserId }: { currentUserId?: string }) {
   const [showCreate, setShowCreate] = useState(false);
+  const { t } = useTranslation();
   const { data: users, isLoading, refetch } = useQuery({ queryKey: ['users'], queryFn: () => usersService.getUsers() });
 
   return (
     <div className="ui-card p-5">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-[16px] font-bold text-[#102F63]">المستخدمون والأدوار</h2>
+        <h2 className="text-[16px] font-bold text-[#102F63]">{t('settings.usersAndRoles')}</h2>
         <button onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-1.5 px-3 py-2 text-sm">
           <Plus size={16} strokeWidth={2} />
-          إضافة مستخدم
+          {t('settings.addUser')}
         </button>
       </div>
 
@@ -301,11 +284,11 @@ function RolesSection({ currentUserId }: { currentUserId?: string }) {
         <table className="ui-table">
           <thead>
             <tr>
-              <th>الاسم</th>
-              <th>البريد الإلكتروني</th>
-              <th>الدور</th>
-              <th>الحالة</th>
-              <th>الإجراءات</th>
+              <th>{t('settings.userName')}</th>
+              <th>{t('settings.email')}</th>
+              <th>{t('settings.role')}</th>
+              <th>{t('common.status')}</th>
+              <th>{t('common.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -317,7 +300,7 @@ function RolesSection({ currentUserId }: { currentUserId?: string }) {
       )}
 
       <p className="text-xs text-[#94A3B8] mt-4">
-        النظام حاليًا يدعم دورين: "مدير النظام" (صلاحية كاملة) و"موظف استقبال" (بدون الوصول لإدارة الخدمات والإعدادات). صلاحيات مخصصة لكل قسم على حدة غير مدعومة بعد.
+        {t('settings.rolesFootnote')}
       </p>
 
       {showCreate && <CreateUserModal onClose={() => setShowCreate(false)} onCreated={refetch} />}
@@ -327,6 +310,8 @@ function RolesSection({ currentUserId }: { currentUserId?: string }) {
 
 function UserRow({ user, isSelf, onChanged }: { user: AppUser; isSelf: boolean; onChanged: () => void }) {
   const [busy, setBusy] = useState(false);
+  const { t } = useTranslation();
+  const { showToast } = useToast();
 
   const toggleStatus = async () => {
     setBusy(true);
@@ -334,7 +319,7 @@ function UserRow({ user, isSelf, onChanged }: { user: AppUser; isSelf: boolean; 
       await usersService.updateUserStatus(user.id, !user.isActive);
       onChanged();
     } catch (err) {
-      console.error('Failed to update user status:', err);
+      showToast({ type: 'error', message: err instanceof Error ? err.message : t('feedback.appointmentStatusFailed') });
     } finally {
       setBusy(false);
     }
@@ -342,21 +327,21 @@ function UserRow({ user, isSelf, onChanged }: { user: AppUser; isSelf: boolean; 
 
   return (
     <tr>
-      <td className="font-medium text-[#1F2430]">{user.name}{isSelf && <span className="text-xs text-[#94A3B8]"> (أنتِ)</span>}</td>
+      <td className="font-medium text-[#1F2430]">{user.name}{isSelf && <span className="text-xs text-[#94A3B8]"> ({t('settings.you')})</span>}</td>
       <td className="text-[#64748B]">{user.email}</td>
       <td>
         <span className="ui-badge" style={{ background: 'rgba(23,59,120,0.1)', color: 'var(--brand-blue)' }}>
-          {user.role === 'ADMIN' ? 'مدير النظام' : 'موظف استقبال'}
+          {user.role === 'ADMIN' ? t('roles.admin') : t('roles.receptionist')}
         </span>
       </td>
       <td>
         <span className="ui-badge" style={user.isActive ? { background: 'rgba(22,128,60,0.1)', color: 'var(--success)' } : { background: 'rgba(100,116,139,0.1)', color: 'var(--text-secondary)' }}>
-          {user.isActive ? 'نشط' : 'معطّل'}
+          {user.isActive ? t('common.active') : t('settings.disabled')}
         </span>
       </td>
       <td>
         <button onClick={toggleStatus} disabled={isSelf || busy} className="text-sm text-[#173B78] disabled:opacity-40 disabled:cursor-not-allowed hover:underline">
-          {busy ? '...' : user.isActive ? 'تعطيل' : 'تفعيل'}
+          {busy ? '...' : user.isActive ? t('common.deactivate') : t('common.activate')}
         </button>
       </td>
     </tr>
@@ -364,6 +349,7 @@ function UserRow({ user, isSelf, onChanged }: { user: AppUser; isSelf: boolean; 
 }
 
 function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -380,7 +366,7 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
       onCreated();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'فشل إنشاء المستخدم');
+      setError(err instanceof Error ? err.message : t('settings.createUserError'));
     } finally {
       setSubmitting(false);
     }
@@ -390,20 +376,20 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 px-4">
       <div className="ui-card p-6 max-w-sm w-full">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-[#102F63]">إضافة مستخدم جديد</h3>
-          <button onClick={onClose} aria-label="إغلاق" className="text-[#94A3B8] hover:text-[#102F63]"><X size={18} /></button>
+          <h3 className="font-bold text-[#102F63]">{t('settings.addNewUser')}</h3>
+          <button onClick={onClose} aria-label={t('common.close')} className="text-[#94A3B8] hover:text-[#102F63]"><X size={18} /></button>
         </div>
         {error && <div className="mb-3 px-3 py-2 bg-red-50 border border-red-100 text-[#C4362B] rounded-lg text-sm">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-3">
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="الاسم" required className="ui-input" />
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="البريد الإلكتروني" required className="ui-input" />
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="كلمة المرور (٦ أحرف على الأقل)" required minLength={6} className="ui-input" />
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('settings.userName')} required className="ui-input" />
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t('settings.email')} required className="ui-input" />
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t('settings.passwordMinLength')} required minLength={6} className="ui-input" />
           <select value={role} onChange={(e) => setRole(e.target.value as 'ADMIN' | 'RECEPTIONIST')} className="ui-input">
-            <option value="RECEPTIONIST">موظف استقبال</option>
-            <option value="ADMIN">مدير النظام</option>
+            <option value="RECEPTIONIST">{t('roles.receptionist')}</option>
+            <option value="ADMIN">{t('roles.admin')}</option>
           </select>
           <button type="submit" disabled={submitting} className="btn-primary w-full py-2.5 text-sm">
-            {submitting ? 'جارِ الإنشاء...' : 'إنشاء المستخدم'}
+            {submitting ? t('settings.creatingUser') : t('settings.createUser')}
           </button>
         </form>
       </div>
@@ -413,6 +399,7 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
 // ---------- الإشعارات والتنبيهات ----------
 function NotificationsSection() {
+  const { t } = useTranslation();
   const [prefs, setPrefs] = useState(DEFAULT_NOTIFICATION_PREFS);
 
   useEffect(() => {
@@ -429,18 +416,18 @@ function NotificationsSection() {
   };
 
   const items: Array<{ key: keyof typeof DEFAULT_NOTIFICATION_PREFS; label: string }> = [
-    { key: 'appointmentReminders', label: 'تذكير بالمواعيد' },
-    { key: 'newAppointment', label: 'إشعار عند حجز موعد جديد' },
-    { key: 'appointmentCancellation', label: 'إشعار عند إلغاء موعد' },
-    { key: 'invoicePayment', label: 'إشعار عند تسجيل دفعة على فاتورة' },
-    { key: 'lowStorage', label: 'تنبيه عند انخفاض مساحة التخزين' },
-    { key: 'backupStatus', label: 'إشعار بحالة النسخ الاحتياطي' },
+    { key: 'appointmentReminders', label: t('settings.notifAppointmentReminders') },
+    { key: 'newAppointment', label: t('settings.notifNewAppointment') },
+    { key: 'appointmentCancellation', label: t('settings.notifAppointmentCancellation') },
+    { key: 'invoicePayment', label: t('settings.notifInvoicePayment') },
+    { key: 'lowStorage', label: t('settings.notifLowStorage') },
+    { key: 'backupStatus', label: t('settings.notifBackupStatus') },
   ];
 
   return (
     <div className="ui-card p-5">
-      <h2 className="text-[16px] font-bold text-[#102F63] mb-1">تفضيلات الإشعارات</h2>
-      <p className="text-xs text-[#94A3B8] mb-4">هذه التفضيلات محفوظة على هذا الجهاز فقط. عند ربط نظام الإشعارات الفعلي بالخادم مستقبلًا، سيتم استخدام نفس هذه الإعدادات.</p>
+      <h2 className="text-[16px] font-bold text-[#102F63] mb-1">{t('settings.notificationPrefs')}</h2>
+      <p className="text-xs text-[#94A3B8] mb-4">{t('settings.notificationPrefsNote')}</p>
       <div className="space-y-3">
         {items.map((item) => (
           <label key={item.key} className="flex items-center justify-between py-2 border-b border-[#E2E8F0] last:border-0 cursor-pointer">
@@ -460,6 +447,7 @@ function NotificationsSection() {
 
 // ---------- الأمان ----------
 function SecuritySection() {
+  const { t } = useTranslation();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -472,7 +460,7 @@ function SecuritySection() {
     setError('');
     setSuccess('');
     if (newPassword !== confirmPassword) {
-      setError('كلمة المرور الجديدة وتأكيدها غير متطابقين');
+      setError(t('settings.passwordMismatch'));
       return;
     }
     setSubmitting(true);
@@ -484,13 +472,13 @@ function SecuritySection() {
         body: JSON.stringify({ currentPassword, newPassword }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'فشل تغيير كلمة المرور');
-      setSuccess('تم تغيير كلمة المرور بنجاح');
+      if (!response.ok) throw new Error(data.message || t('settings.passwordChangeError'));
+      setSuccess(t('settings.passwordChangeSuccess'));
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'فشل تغيير كلمة المرور');
+      setError(err instanceof Error ? err.message : t('settings.passwordChangeError'));
     } finally {
       setSubmitting(false);
     }
@@ -500,16 +488,16 @@ function SecuritySection() {
     <div className="ui-card p-5 max-w-md">
       <h2 className="text-[16px] font-bold text-[#102F63] mb-4 flex items-center gap-2">
         <Lock size={17} strokeWidth={1.75} />
-        تغيير كلمة المرور
+        {t('settings.changePassword')}
       </h2>
       {error && <div className="mb-3 px-3 py-2 bg-red-50 border border-red-100 text-[#C4362B] rounded-lg text-sm">{error}</div>}
       {success && <div className="mb-3 px-3 py-2 bg-green-50 border border-green-100 text-[var(--success)] rounded-lg text-sm">{success}</div>}
       <form onSubmit={handleSubmit} className="space-y-3">
-        <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="كلمة المرور الحالية" required className="ui-input" />
-        <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="كلمة المرور الجديدة" required minLength={6} className="ui-input" />
-        <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="تأكيد كلمة المرور الجديدة" required minLength={6} className="ui-input" />
+        <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder={t('settings.currentPassword')} required className="ui-input" />
+        <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={t('settings.newPassword')} required minLength={6} className="ui-input" />
+        <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder={t('settings.confirmNewPassword')} required minLength={6} className="ui-input" />
         <button type="submit" disabled={submitting} className="btn-primary px-4 py-2.5 text-sm">
-          {submitting ? 'جارِ الحفظ...' : 'حفظ كلمة المرور الجديدة'}
+          {submitting ? t('settings.savingPassword') : t('settings.saveNewPassword')}
         </button>
       </form>
     </div>
@@ -519,30 +507,31 @@ function SecuritySection() {
 // ---------- سجل التغييرات ----------
 function ActivitySection() {
   const [page, setPage] = useState(1);
+  const { t } = useTranslation();
   const { data, isLoading } = useQuery({ queryKey: ['audit-logs', page], queryFn: () => auditService.getLogs(page, 20) });
 
   return (
     <div className="ui-card p-5">
-      <h2 className="text-[16px] font-bold text-[#102F63] mb-4">سجل التغييرات</h2>
+      <h2 className="text-[16px] font-bold text-[#102F63] mb-4">{t('settings.activityTitle')}</h2>
       {isLoading && <Skeleton className="h-40 rounded-lg" />}
-      {data && data.data.length === 0 && <div className="ui-empty-state">لا توجد عمليات مسجلة بعد</div>}
+      {data && data.data.length === 0 && <div className="ui-empty-state">{t('settings.noActivityYet')}</div>}
       {data && data.data.length > 0 && (
         <>
           <table className="ui-table">
             <thead>
               <tr>
-                <th>المستخدم</th>
-                <th>العملية</th>
-                <th>القسم</th>
-                <th>التاريخ والوقت</th>
+                <th>{t('settings.userName')}</th>
+                <th>{t('settings.action')}</th>
+                <th>{t('settings.module')}</th>
+                <th>{t('appointments.dateTime')}</th>
               </tr>
             </thead>
             <tbody>
               {data.data.map((entry) => (
                 <tr key={entry.id}>
                   <td className="text-[#1F2430]">{entry.user?.name || '—'}</td>
-                  <td className="text-[#64748B]">{AUDIT_ACTION_LABELS[entry.action] || entry.action}</td>
-                  <td className="text-[#64748B]">{AUDIT_ENTITY_LABELS[entry.entityType] || entry.entityType}</td>
+                  <td className="text-[#64748B]">{t(`settings.action${entry.action === 'CREATE' ? 'Create' : entry.action === 'UPDATE' ? 'Update' : 'UpdateStatus'}`, { defaultValue: entry.action })}</td>
+                  <td className="text-[#64748B]">{t(`settings.entity${entry.entityType}`, { defaultValue: entry.entityType })}</td>
                   <td className="text-[#94A3B8] text-sm">{formatDateTime(entry.createdAt)}</td>
                 </tr>
               ))}
@@ -550,9 +539,9 @@ function ActivitySection() {
           </table>
           {data.meta.totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 mt-4">
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1.5 rounded-md border border-[#E2E8F0] text-sm disabled:opacity-40">السابق</button>
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1.5 rounded-md border border-[#E2E8F0] text-sm disabled:opacity-40">{t('common.previous')}</button>
               <span className="text-sm text-[#102F63] font-medium">{page} / {data.meta.totalPages}</span>
-              <button onClick={() => setPage((p) => Math.min(data.meta.totalPages, p + 1))} disabled={page === data.meta.totalPages} className="px-3 py-1.5 rounded-md border border-[#E2E8F0] text-sm disabled:opacity-40">التالي</button>
+              <button onClick={() => setPage((p) => Math.min(data.meta.totalPages, p + 1))} disabled={page === data.meta.totalPages} className="px-3 py-1.5 rounded-md border border-[#E2E8F0] text-sm disabled:opacity-40">{t('common.next')}</button>
             </div>
           )}
         </>
@@ -563,6 +552,7 @@ function ActivitySection() {
 
 // ---------- معلومات النظام ----------
 function SystemInfoSection() {
+  const { t } = useTranslation();
   const { data: health, isLoading } = useQuery({
     queryKey: ['health'],
     queryFn: async () => {
@@ -574,20 +564,20 @@ function SystemInfoSection() {
 
   return (
     <div className="ui-card p-5">
-      <h2 className="text-[16px] font-bold text-[#102F63] mb-4">معلومات النظام</h2>
+      <h2 className="text-[16px] font-bold text-[#102F63] mb-4">{t('settings.systemTitle')}</h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <InfoTile label="حالة الخادم" loading={isLoading} ok={health?.ok} okText="يعمل بشكل طبيعي" badText="غير متصل" />
-        <InfoTile label="قاعدة البيانات" loading={isLoading} ok={health?.data?.database === 'connected'} okText="متصلة" badText="غير متصلة" />
+        <InfoTile label={t('settings.serverStatus')} loading={isLoading} ok={health?.ok} okText={t('settings.workingNormally')} badText={t('settings.disconnected')} />
+        <InfoTile label={t('settings.database')} loading={isLoading} ok={health?.data?.database === 'connected'} okText={t('settings.connected')} badText={t('settings.notConnected')} />
         <div className="p-4 rounded-xl border border-[#E2E8F0]">
-          <div className="text-xs text-[#94A3B8] mb-1">إصدار النظام</div>
+          <div className="text-xs text-[#94A3B8] mb-1">{t('settings.systemVersion')}</div>
           <div className="font-bold text-[#1F2430]">{APP_VERSION}</div>
         </div>
         <div className="p-4 rounded-xl border border-[#E2E8F0]">
-          <div className="text-xs text-[#94A3B8] mb-1">آخر فحص</div>
+          <div className="text-xs text-[#94A3B8] mb-1">{t('settings.lastCheck')}</div>
           <div className="font-bold text-[#1F2430] text-sm">{health?.data?.timestamp ? formatDateTime(health.data.timestamp) : '—'}</div>
         </div>
       </div>
-      <p className="text-xs text-[#94A3B8] mt-4">تفاصيل مساحة التخزين والنسخ الاحتياطي متاحة من قسم النسخ الاحتياطي والاستعادة.</p>
+      <p className="text-xs text-[#94A3B8] mt-4">{t('settings.systemInfoNote')}</p>
     </div>
   );
 }
@@ -611,6 +601,7 @@ function InfoTile({ label, loading, ok, okText, badText }: { label: string; load
 
 // ---------- نظرة عامة (الحالة الافتراضية) ----------
 function SystemOverviewGrid() {
+  const { t } = useTranslation();
   const { data: health } = useQuery({
     queryKey: ['health'],
     queryFn: async () => {
@@ -621,17 +612,17 @@ function SystemOverviewGrid() {
 
   return (
     <div className="ui-card p-5">
-      <h2 className="text-[15px] font-bold text-[#102F63] mb-4">نظرة عامة على النظام</h2>
+      <h2 className="text-[15px] font-bold text-[#102F63] mb-4">{t('settings.systemOverview')}</h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <InfoTile label="حالة النظام" loading={!health} ok={health?.ok} okText="يعمل بشكل طبيعي" badText="غير متصل" />
-        <InfoTile label="قاعدة البيانات" loading={!health} ok={health?.data?.database === 'connected'} okText="متصلة" badText="غير متصلة" />
+        <InfoTile label={t('settings.systemStatus')} loading={!health} ok={health?.ok} okText={t('settings.systemHealthy')} badText={t('settings.systemOffline')} />
+        <InfoTile label={t('settings.database')} loading={!health} ok={health?.data?.database === 'connected'} okText={t('settings.connected')} badText={t('settings.disconnected')} />
         <div className="p-4 rounded-xl border border-[#E2E8F0]">
-          <div className="text-xs text-[#94A3B8] mb-1">إصدار النظام</div>
+          <div className="text-xs text-[#94A3B8] mb-1">{t('settings.systemVersion')}</div>
           <div className="font-bold text-[#1F2430]">{APP_VERSION}</div>
         </div>
         <div className="p-4 rounded-xl border border-[#E2E8F0]">
-          <div className="text-xs text-[#94A3B8] mb-1">النسخ الاحتياطي</div>
-          <div className="font-bold text-[#94A3B8] text-sm">راجع قسم النسخ الاحتياطي</div>
+          <div className="text-xs text-[#94A3B8] mb-1">{t('settings.backup')}</div>
+          <div className="font-bold text-[#94A3B8] text-sm">{t('settings.reviewBackup')}</div>
         </div>
       </div>
     </div>

@@ -77,7 +77,7 @@ export default function PatientsList() {
             type="text"
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
-            placeholder={t('patients.searchPlaceholder')}
+            placeholder={t('patients.searchPatients')}
             className="ui-input pr-10"
           />
         </div>

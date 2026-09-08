@@ -113,6 +113,7 @@
     "accountInactive": "تم تعطيل حسابك. يرجى التواصل مع المسؤول."
   },
   "dashboard": {
+    "clinicLabel": "مركز العيادات التخصصية",
     "title": "لوحة التحكم",
     "subtitle": "مرحبًا بك في نظام إدارة العيادات",
     "welcome": "مرحبًا بك، {{name}}",
@@ -127,11 +128,13 @@
     "todayAppointments": "مواعيد اليوم",
     "weekVisits": "زيارات هذا الأسبوع",
     "totalOutstanding": "إجمالي المستحقات"
+    ,"quickActions": "إجراءات سريعة"
+    ,"quickActionsSubtitle": "افتح مسارات العمل الأكثر استخدامًا في العيادة"
   },
   "patients": {
     "subtitle": "إدارة بيانات المرضى والمريضات",
     "addNew": "إضافة مريض جديد",
-    "searchPlaceholder": "البحث برقم المدني أو اسم أو هاتف...",
+    "searchPatients": "البحث بالرقم المدني أو الاسم أو الهاتف...",
     "loadError": "فشل في تحميل بيانات المرضى",
     "name": "اسم المريض",
     "civilId": "الرقم المدني",
@@ -155,6 +158,7 @@
     "nameArLabel": "الاسم بالعربية",
     "nameArPlaceholder": "أدخل الاسم بالعربية",
     "nameEnLabel": "الاسم بالإنجليزية",
+    "nameEnPlaceholder": "أدخل الاسم بالإنجليزية",
     "phoneLabel": "رقم الهاتف",
     "phonePlaceholder": "أدخل رقم الهاتف",
     "dobLabel": "تاريخ الميلاد",
@@ -181,6 +185,7 @@
     "noPaymentsRecorded": "لا توجد مدفوعات مسجلة",
     "appointmentsHistory": "سجل المواعيد",
     "noAppointmentsRecorded": "لا توجد مواعيد مسجلة"
+    ,"sections": "أقسام ملف المريض"
   },
   "visits": {
     "subtitle": "إدارة ومتابعة زيارات المريضات",
@@ -269,6 +274,8 @@
   },
   "invoices": {
     "loadError": "فشل في تحميل بيانات الفواتير",
+    "searchLabel": "البحث في الفواتير",
+    "searchPlaceholder": "البحث برقم الفاتورة أو اسم المريض أو الهاتف...",
     "statusDraft": "مسودة",
     "statusIssued": "صادرة",
     "statusVoid": "ملغاة",
@@ -323,6 +330,7 @@
     "replacedInvoice": "عرض الفاتورة الأصلية"
   },
   "payments": {
+    "amountGuidance": "أدخل مبلغًا لا يتجاوز الرصيد المتبقي.",
     "methodCash": "نقداً",
     "methodVisa": "فيزا",
     "methodKnet": "كي نت",
@@ -344,6 +352,23 @@
     "reverseConfirm": "سيتم إلغاء هذه الدفعة واستبعادها من رصيد الفاتورة. هل تريدين المتابعة؟"
   },
   "appointments": {
+    "patientInfo": "بيانات المريض",
+    "appointmentInfo": "بيانات الموعد",
+    "dateTime": "التاريخ والوقت",
+    "notes": "ملاحظات",
+    "creationInfo": "معلومات الإنشاء",
+    "createdAt": "تاريخ الإنشاء",
+    "confirm": "تأكيد الموعد",
+    "markDone": "تم الإنجاز",
+    "cancel": "إلغاء الموعد",
+    "markNoShow": "لم يحضر",
+    "viewPatient": "عرض الملف الطبي",
+    "cancelReason": "سبب الإلغاء",
+    "cancelPatientRequest": "طلب المريض",
+    "cancelScheduleConflict": "تعارض بالمواعيد",
+    "cancelOther": "أخرى",
+    "cancelReasonPlaceholder": "اكتب السبب...",
+    "confirmCancellation": "تأكيد الإلغاء",
     "loadError": "فشل في تحميل بيانات المواعيد",
     "statusBooked": "محجوز",
     "statusConfirmed": "مؤكد",
@@ -411,6 +436,16 @@
     "loadError": "فشل تحميل بيانات التقرير"
   },
   "settings": {
+    "systemOverview": "نظرة عامة على النظام",
+    "systemStatus": "حالة النظام",
+    "systemHealthy": "يعمل بشكل طبيعي",
+    "systemOffline": "غير متصل",
+    "database": "قاعدة البيانات",
+    "connected": "متصلة",
+    "disconnected": "غير متصلة",
+    "systemVersion": "إصدار النظام",
+    "backup": "النسخ الاحتياطي",
+    "reviewBackup": "راجع قسم النسخ الاحتياطي",
     "subtitle": "إدارة إعدادات النظام والصلاحيات والتنبيهات والنسخ الاحتياطي والأمان",
     "rolesTitle": "الصلاحيات والأدوار",
     "rolesDesc": "إدارة المستخدمين وتحديد الأدوار والصلاحيات لكل دور في النظام",
@@ -452,6 +487,7 @@
     "currentPassword": "كلمة المرور الحالية",
     "newPassword": "كلمة المرور الجديدة",
     "confirmNewPassword": "تأكيد كلمة المرور الجديدة",
+    "savingPassword": "جارِ الحفظ...",
     "saveNewPassword": "حفظ كلمة المرور الجديدة",
     "noActivityYet": "لا توجد عمليات مسجلة بعد",
     "action": "العملية",

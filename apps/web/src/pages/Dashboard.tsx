@@ -1,11 +1,8 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { UsersRound, CalendarDays, ClipboardList, ReceiptText, Stethoscope, Wallet } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
-import Header from '../components/Header';
-import Sidebar from '../components/Sidebar';
 import DashboardCard from '../components/DashboardCard';
 import StatCard from '../components/StatCard';
 import { patientsService } from '../services/patients.service';
@@ -13,13 +10,13 @@ import { appointmentsService } from '../services/appointments.service';
 import { visitsService } from '../services/visits.service';
 import { reportsService } from '../services/reports.service';
 import { formatMoney } from '../utils/money';
+import { formatDate } from '../utils/dateFormat';
 
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'ADMIN';
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const roleLabel = user?.role === 'ADMIN' ? t('roles.admin') : t('roles.receptionist');
 
@@ -65,29 +62,45 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="min-h-screen flex bg-[#F6F8FC]">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header onOpenSidebar={() => setSidebarOpen(true)} />
-
-        <main className="page-container flex-1">
-          <div className="mb-6">
-            <h1 className="text-[26px] font-bold text-[#102F63]">{t('dashboard.title')}</h1>
-            <p className="text-[14px] text-[#64748B] mt-1">{t('dashboard.subtitle')}</p>
-          </div>
-
-          <div className="ui-card px-6 py-5 mb-6 flex items-center gap-4">
-            <span className="w-11 h-11 rounded-full bg-[#173B78] text-white flex items-center justify-center shrink-0">
-              <UsersRound size={20} strokeWidth={1.75} />
-            </span>
+    <main className="page-container flex-1">
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-[15px] font-semibold text-[#102F63]">{t('dashboard.welcome', { name: user?.name || 'Admin' })}</p>
-              <p className="text-[13px] text-[#64748B]">{t('dashboard.role')}: {roleLabel}</p>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#4B5694]">{t('dashboard.clinicLabel')}</p>
+              <h1 className="text-2xl font-bold tracking-tight text-[#102F63] sm:text-[30px]">{t('dashboard.title')}</h1>
+              <p className="mt-1 text-sm text-[#64748B]">{t('dashboard.subtitle')}</p>
+            </div>
+            <div className="text-start text-sm text-[#64748B] sm:text-end">
+              <div className="font-semibold text-[#102F63]">{t('dashboard.welcome', { name: user?.name || t('common.user') })}</div>
+              <div>{formatDate(new Date(), i18n.language)}</div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          <div className="mb-6 overflow-hidden rounded-2xl bg-[#102F63] px-5 py-5 text-white shadow-[var(--shadow-soft-lg)] sm:px-7 sm:py-6">
+            <div className="flex items-center gap-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/12">
+                <UsersRound size={22} strokeWidth={1.75} />
+              </span>
+              <div>
+                <p className="text-lg font-semibold">{t('dashboard.welcome', { name: user?.name || t('common.user') })}</p>
+                <p className="mt-1 text-sm text-white/70">{t('dashboard.role')}: {roleLabel}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatCard label={t('dashboard.totalPatients')} value={patientsData ?? 0} isLoading={patientsLoading} icon={UsersRound} />
+            <StatCard label={t('dashboard.todayAppointments')} value={appointmentsData ?? 0} isLoading={appointmentsLoading} icon={CalendarDays} />
+            <StatCard label={t('dashboard.weekVisits')} value={visitsData ?? 0} isLoading={visitsLoading} icon={ClipboardList} />
+            {isAdmin && <StatCard label={t('dashboard.totalOutstanding')} value={formatMoney(reportsData ?? 0, i18n.language)} isLoading={reportsLoading} icon={Wallet} />}
+          </div>
+
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-[#102F63]">{t('dashboard.quickActions')}</h2>
+              <p className="mt-1 text-sm text-[#64748B]">{t('dashboard.quickActionsSubtitle')}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <DashboardCard
               title={t('sidebar.patients')}
               description={t('dashboard.patientsDesc')}
@@ -123,37 +136,6 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="ui-card px-6 py-5">
-            <h2 className="text-[16px] font-semibold text-[#102F63] mb-3">{t('dashboard.quickSummary')}</h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 divide-x rtl:divide-x-reverse divide-[#E2E8F0]">
-              <StatCard
-                label={t('dashboard.totalPatients')}
-                value={patientsData ?? 0}
-                isLoading={patientsLoading}
-                icon={UsersRound}
-              />
-              <StatCard
-                label={t('dashboard.todayAppointments')}
-                value={appointmentsData ?? 0}
-                isLoading={appointmentsLoading}
-                icon={CalendarDays}
-              />
-              <StatCard
-                label={t('dashboard.weekVisits')}
-                value={visitsData ?? 0}
-                isLoading={visitsLoading}
-                icon={ClipboardList}
-              />
-              <StatCard
-                label={t('dashboard.totalOutstanding')}
-                value={isAdmin ? formatMoney(reportsData ?? 0, i18n.language) : null}
-                isLoading={isAdmin && reportsLoading}
-                icon={Wallet}
-              />
-            </div>
-          </div>
-        </main>
-      </div>
-    </div>
+    </main>
   );
 }

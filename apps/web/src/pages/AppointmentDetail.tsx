@@ -7,11 +7,12 @@ import { getReturnTo, preserveListState } from '../utils/listState';
 import { useToast } from '../contexts/ToastContext';
 import PageHeader from '../components/PageHeader';
 import Skeleton from '../components/Skeleton';
+import { formatDateTime as formatLocalizedDateTime } from '../utils/dateFormat';
 
 export default function AppointmentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
   const returnTo = getReturnTo(searchParams.toString(), '/appointments');
   const { showToast } = useToast();
@@ -57,11 +58,11 @@ export default function AppointmentDetail() {
 
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
-      BOOKED: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'محجوز' },
-      CONFIRMED: { bg: 'bg-indigo-100', text: 'text-indigo-700', label: 'مؤكد' },
-      DONE: { bg: 'bg-green-100', text: 'text-green-700', label: 'تم' },
-      CANCELLED: { bg: 'bg-red-100', text: 'text-red-700', label: 'ملغي' },
-      NO_SHOW: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'لم يحضر' },
+      BOOKED: { bg: 'bg-blue-100', text: 'text-blue-700', label: t('appointments.statusBooked') },
+      CONFIRMED: { bg: 'bg-indigo-100', text: 'text-indigo-700', label: t('appointments.statusConfirmed') },
+      DONE: { bg: 'bg-green-100', text: 'text-green-700', label: t('appointments.statusDone') },
+      CANCELLED: { bg: 'bg-red-100', text: 'text-red-700', label: t('appointments.statusCancelled') },
+      NO_SHOW: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: t('appointments.statusNoShow') },
     };
 
     const config = statusConfig[status] || statusConfig.BOOKED;
@@ -88,14 +89,7 @@ export default function AppointmentDetail() {
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleString('ar-KW', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatLocalizedDateTime(date, i18n.language);
   };
 
   if (isLoading) {
@@ -142,19 +136,19 @@ export default function AppointmentDetail() {
               <div className="space-y-6">
                 {/* Patient Info */}
                 <div className="border-b border-gray-200 pb-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">بيانات المريض</h2>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('appointments.patientInfo')}</h2>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="text-sm text-gray-500 block mb-1">الاسم</label>
+                      <label className="text-sm text-gray-500 block mb-1">{t('patients.name')}</label>
                       <p className="font-medium text-gray-900">{appointment.patient.fullNameAr}</p>
                     </div>
                     <div>
-                      <label className="text-sm text-gray-500 block mb-1">الرقم المدني</label>
+                      <label className="text-sm text-gray-500 block mb-1">{t('patients.civilId')}</label>
                       <p className="font-medium text-gray-900">{appointment.patient.civilId}</p>
                     </div>
                     {appointment.patient.phone && (
                       <div>
-                        <label className="text-sm text-gray-500 block mb-1">الهاتف</label>
+                        <label className="text-sm text-gray-500 block mb-1">{t('patients.phone')}</label>
                         <p className="text-gray-900">{appointment.patient.phone}</p>
                       </div>
                     )}
@@ -163,19 +157,19 @@ export default function AppointmentDetail() {
 
                 {/* Appointment Info */}
                 <div className="border-b border-gray-200 pb-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">بيانات الموعد</h2>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('appointments.appointmentInfo')}</h2>
                   <div className="space-y-4">
                     <div>
-                      <label className="text-sm text-gray-500 block mb-1">التاريخ والوقت</label>
+                      <label className="text-sm text-gray-500 block mb-1">{t('appointments.dateTime')}</label>
                       <p className="font-medium text-gray-900">{formatDateTime(appointment.scheduledAt)}</p>
                     </div>
                     <div>
-                      <label className="text-sm text-gray-500 block mb-1">الحالة</label>
+                      <label className="text-sm text-gray-500 block mb-1">{t('common.status')}</label>
                       {getStatusBadge(appointment.status)}
                     </div>
                     {appointment.notes && (
                       <div>
-                        <label className="text-sm text-gray-500 block mb-1">ملاحظات</label>
+                        <label className="text-sm text-gray-500 block mb-1">{t('appointments.notes')}</label>
                         <p className="text-gray-900">{appointment.notes}</p>
                       </div>
                     )}
@@ -184,10 +178,10 @@ export default function AppointmentDetail() {
 
                 {/* Audit Info */}
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">معلومات الإنشاء</h2>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('appointments.creationInfo')}</h2>
                   <div className="space-y-4">
                     <div>
-                      <label className="text-sm text-gray-500 block mb-1">تاريخ الإنشاء</label>
+                      <label className="text-sm text-gray-500 block mb-1">{t('appointments.createdAt')}</label>
                       <p className="text-gray-900">{new Date(appointment.createdAt).toLocaleString('ar-KW')}</p>
                     </div>
                   </div>
@@ -199,7 +193,7 @@ export default function AppointmentDetail() {
           {/* Actions Panel */}
           <div className="lg:col-span-1">
             <div className="rounded-lg bg-white p-4 shadow-md sm:sticky sm:top-8 sm:p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">الإجراءات</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('common.actions')}</h3>
               <div className="space-y-3">
                 {canConfirm && (
                   <button
@@ -207,7 +201,7 @@ export default function AppointmentDetail() {
                     disabled={updateStatusMutation.isPending}
                     className="w-full py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50"
                   >
-                    تأكيد الموعد
+                    {t('appointments.confirm')}
                   </button>
                 )}
 
@@ -217,7 +211,7 @@ export default function AppointmentDetail() {
                     disabled={updateStatusMutation.isPending}
                     className="w-full py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
                   >
-                    تم الإنجاز
+                    {t('appointments.markDone')}
                   </button>
                 )}
 
@@ -226,7 +220,7 @@ export default function AppointmentDetail() {
                     onClick={() => setShowCancelDialog(true)}
                     className="w-full py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
                   >
-                    إلغاء الموعد
+                    {t('appointments.cancel')}
                   </button>
                 )}
 
@@ -236,7 +230,7 @@ export default function AppointmentDetail() {
                     disabled={updateStatusMutation.isPending}
                     className="w-full py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors disabled:opacity-50"
                   >
-                    لم يحضر
+                    {t('appointments.markNoShow')}
                   </button>
                 )}
 
@@ -244,7 +238,7 @@ export default function AppointmentDetail() {
                   to={preserveListState(`/patients/${appointment.patient.id}`, { pathname: `/appointments/${appointment.id}`, search: '' })}
                   className="w-full py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
                 >
-                  عرض الملف الطبي
+                  {t('appointments.viewPatient')}
                 </Link>
               </div>
             </div>
@@ -255,30 +249,30 @@ export default function AppointmentDetail() {
         {showCancelDialog && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-md p-6 max-w-md w-full mx-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">سبب الإلغاء</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('appointments.cancelReason')}</h3>
               
               <div className="space-y-3 mb-4">
                 <button
                   type="button"
-                  onClick={() => setCancelReasonType('طلب المريضة')}
+                  onClick={() => setCancelReasonType('patientRequest')}
                   className={`w-full py-2 px-4 rounded-md border ${
-                    cancelReasonType === 'طلب المريضة'
+                    cancelReasonType === 'patientRequest'
                       ? 'border-[#111844] bg-[#111844] text-white'
                       : 'border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  طلب المريضة
+                  {t('appointments.cancelPatientRequest')}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setCancelReasonType('تعارض بالمواعيد')}
+                  onClick={() => setCancelReasonType('scheduleConflict')}
                   className={`w-full py-2 px-4 rounded-md border ${
-                    cancelReasonType === 'تعارض بالمواعيد'
+                    cancelReasonType === 'scheduleConflict'
                       ? 'border-[#111844] bg-[#111844] text-white'
                       : 'border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  تعارض بالمواعيد
+                  {t('appointments.cancelScheduleConflict')}
                 </button>
                 <button
                   type="button"
@@ -289,7 +283,7 @@ export default function AppointmentDetail() {
                       : 'border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  أخرى
+                  {t('appointments.cancelOther')}
                 </button>
               </div>
 
@@ -297,7 +291,7 @@ export default function AppointmentDetail() {
                 <textarea
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
-                  placeholder="اكتب السبب..."
+                  placeholder={t('appointments.cancelReasonPlaceholder')}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844] mb-4"
                 />
@@ -312,14 +306,14 @@ export default function AppointmentDetail() {
                   }}
                   className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
                 >
-                  إلغاء
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleCancel}
                   disabled={!cancelReasonType || (cancelReasonType === 'other' && !cancelReason) || cancelMutation.isPending}
                   className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  تأكيد الإلغاء
+                  {t('appointments.confirmCancellation')}
                 </button>
               </div>
             </div>

@@ -149,7 +149,8 @@ export default function DailyClosingPage() {
             {data.invoices.length === 0 ? (
               <EmptyState title={t('common.noDataAvailable')} />
             ) : (
-              <table className="ui-table">
+              <div className="overflow-x-auto">
+              <table className="ui-table min-w-[680px]">
                 <thead>
                   <tr>
                     <th>{t('invoices.number')}</th>
@@ -173,6 +174,7 @@ export default function DailyClosingPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
 
@@ -184,7 +186,8 @@ export default function DailyClosingPage() {
             {data.payments.length === 0 ? (
               <EmptyState title={t('payments.noPayments')} />
             ) : (
-              <table className="ui-table">
+              <div className="overflow-x-auto">
+              <table className="ui-table min-w-[620px]">
                 <thead>
                   <tr>
                     <th>{t('invoices.number')}</th>
@@ -206,6 +209,7 @@ export default function DailyClosingPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </>

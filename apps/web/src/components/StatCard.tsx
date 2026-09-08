@@ -10,7 +10,7 @@ interface StatCardProps {
 
 export default function StatCard({ label, value, icon: Icon, isLoading, trend }: StatCardProps) {
   return (
-    <div className="p-4">
+    <div className="min-h-[112px] rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-[var(--shadow-soft)]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-[13px] text-[#64748B]">{label}</span>
         {Icon && (
@@ -23,7 +23,7 @@ export default function StatCard({ label, value, icon: Icon, isLoading, trend }:
         <div className="ui-skeleton h-7 w-24" />
       ) : (
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-bold text-[#102F63]">{value ?? '—'}</span>
+          <span className="text-2xl font-bold tracking-tight text-[#102F63] sm:text-3xl">{value ?? '—'}</span>
           {trend && <span className="text-xs font-medium text-[#16803C]">{trend}</span>}
         </div>
       )}
