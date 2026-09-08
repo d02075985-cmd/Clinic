@@ -9,6 +9,9 @@ import { centsToMoney, formatMoney, moneyToCents, normalizeMoneyInput, roundDivi
 import { getReturnTo } from '../utils/listState';
 import PageHeader from '../components/PageHeader';
 import Skeleton from '../components/Skeleton';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
+import { useToast } from '../contexts/ToastContext';
 
 interface LineItem {
   serviceId: string;
@@ -28,10 +31,12 @@ export default function InvoiceForm() {
   const [searchParams] = useSearchParams();
   const visitId = searchParams.get('visitId') || '';
   const returnTo = getReturnTo(searchParams.toString(), visitId ? `/visits/${visitId}` : '/invoices');
+  const { showToast } = useToast();
 
   const [items, setItems] = useState<LineItem[]>([{ serviceId: '', quantity: 1, unitPrice: null }]);
   const [additionalCharges, setAdditionalCharges] = useState<AdditionalCharge[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const { confirmOpen, requestNavigation, stay, leave } = useUnsavedChanges(items.some((item) => item.serviceId || item.unitPrice !== null || item.quantity !== 1) || additionalCharges.length > 0);
 
   const { data: visit, isLoading: visitLoading } = useQuery({
     queryKey: ['visit', visitId],
@@ -59,10 +64,12 @@ export default function InvoiceForm() {
   const createMutation = useMutation({
     mutationFn: (data: CreateInvoiceDto) => invoicesService.createInvoice(data),
     onSuccess: (invoice) => {
+      showToast({ type: 'success', message: t('feedback.invoiceCreated') });
       navigate(`/invoices/${invoice.id}?returnTo=${encodeURIComponent(returnTo)}`);
     },
     onError: (err: Error) => {
       setError(err.message);
+      showToast({ type: 'error', message: err.message || t('invoices.createError') });
     },
   });
 
@@ -175,7 +182,12 @@ export default function InvoiceForm() {
   return (
     <div className="min-h-screen bg-[#F6F7FA]">
     <div className="container mx-auto max-w-2xl px-4 py-5 sm:py-8">
-        <PageHeader title={t('invoices.newInvoice')} breadcrumbs={[{ label: t('sidebar.invoices'), href: returnTo }, { label: t('invoices.newInvoice') }]} />
+        <PageHeader
+          title={t('invoices.newInvoice')}
+          breadcrumbs={[{ label: t('sidebar.invoices'), href: returnTo }, { label: t('invoices.newInvoice') }]}
+          backTo={returnTo}
+          onBack={() => requestNavigation(() => navigate(returnTo))}
+        />
 
         {visit && (
           <div className="bg-white rounded-lg shadow-md p-4 mb-6">
@@ -346,12 +358,22 @@ export default function InvoiceForm() {
             </button>
             <button
               type="button"
-              onClick={() => navigate(returnTo)}
+              onClick={() => requestNavigation(() => navigate(returnTo))}
               className="w-full rounded-md border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 sm:w-auto"
             >
               {t('common.cancel')}
             </button>
           </div>
+          <ConfirmDialog
+            open={confirmOpen}
+            title={t('common.unsavedChangesTitle')}
+            message={t('common.unsavedChangesMessage')}
+            confirmLabel={t('common.leave')}
+            cancelLabel={t('common.stay')}
+            destructive
+            onConfirm={() => leave(() => navigate(returnTo))}
+            onCancel={stay}
+          />
         </form>
       </div>
     </div>

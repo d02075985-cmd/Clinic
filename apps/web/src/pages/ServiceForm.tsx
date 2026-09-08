@@ -8,6 +8,8 @@ import { getReturnTo } from '../utils/listState';
 import { useToast } from '../contexts/ToastContext';
 import PageHeader from '../components/PageHeader';
 import Skeleton from '../components/Skeleton';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
 
 export default function ServiceForm() {
   const { t } = useTranslation();
@@ -34,6 +36,12 @@ export default function ServiceForm() {
     queryFn: () => servicesService.getService(id!),
     enabled: isEdit,
   });
+  const initialFormData = { name: '', code: '', description: '', currentPrice: 0, isActive: true };
+  const baseline = serviceData ? {
+    name: serviceData.name, code: serviceData.code || '', description: serviceData.description || '',
+    currentPrice: parseFloat(serviceData.currentPrice), isActive: serviceData.isActive,
+  } : initialFormData;
+  const { confirmOpen, requestNavigation, stay, leave } = useUnsavedChanges(JSON.stringify(formData) !== JSON.stringify(baseline));
 
   // Populate form when service data is loaded
   useEffect(() => {
@@ -128,7 +136,7 @@ export default function ServiceForm() {
   };
 
   const handleCancel = () => {
-    navigate(returnTo);
+    requestNavigation(() => navigate(returnTo));
   };
 
   if (isLoading) {
@@ -147,6 +155,8 @@ export default function ServiceForm() {
         <PageHeader
           title={isEdit ? t('services.editService') : t('services.newService')}
           breadcrumbs={[{ label: t('sidebar.services'), href: returnTo }, { label: isEdit ? t('services.editService') : t('services.newService') }]}
+          backTo={returnTo}
+          onBack={() => requestNavigation(() => navigate(returnTo))}
           actions={<button onClick={handleCancel} className="btn-primary px-4 py-2">{t('common.cancel')}</button>}
         />
 
@@ -168,6 +178,7 @@ export default function ServiceForm() {
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                onBlur={validateForm}
                 className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844] ${errors.name ? 'border-red-500' : 'border-gray-300'
                   }`}
                 placeholder={t('services.namePlaceholder')}
@@ -224,6 +235,7 @@ export default function ServiceForm() {
                   min="0"
                   value={formData.currentPrice}
                   onChange={(e) => handlePriceChange(e.target.value)}
+                  onBlur={validateForm}
                   className={`flex-1 px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844] ${errors.currentPrice ? 'border-red-500' : 'border-gray-300'
                     }`}
                   placeholder="0.00"
@@ -279,6 +291,16 @@ export default function ServiceForm() {
             </div>
           </form>
         </div>
+        <ConfirmDialog
+          open={confirmOpen}
+          title={t('common.unsavedChangesTitle')}
+          message={t('common.unsavedChangesMessage')}
+          confirmLabel={t('common.leave')}
+          cancelLabel={t('common.stay')}
+          destructive
+          onConfirm={() => leave(() => navigate(returnTo))}
+          onCancel={stay}
+        />
       </div>
     </div>
   );

@@ -8,6 +8,8 @@ import { useTranslation } from 'react-i18next';
 import { getReturnTo } from '../utils/listState';
 import PageHeader from '../components/PageHeader';
 import { useToast } from '../contexts/ToastContext';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
 
 export default function VisitForm() {
   const navigate = useNavigate();
@@ -17,18 +19,28 @@ export default function VisitForm() {
   const prefillAppointmentId = searchParams.get('appointmentId') || '';
   const returnTo = getReturnTo(searchParams.toString(), prefillPatientId ? `/patients/${prefillPatientId}` : '/visits');
   const { showToast } = useToast();
+  const [initialVisitDate] = useState(() => new Date().toISOString());
 
   const [formData, setFormData] = useState<CreateVisitDto>({
     patientId: prefillPatientId,
     appointmentId: prefillAppointmentId,
     type: 'CHECKUP',
-    visitDate: new Date().toISOString(),
+    visitDate: initialVisitDate,
     notes: '',
     diagnosis: '',
   });
   const [patientSearch, setPatientSearch] = useState('');
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const initialFormData = {
+    patientId: prefillPatientId,
+    appointmentId: prefillAppointmentId,
+    type: 'CHECKUP',
+    visitDate: initialVisitDate,
+    notes: '',
+    diagnosis: '',
+  };
+  const { confirmOpen, requestNavigation, stay, leave } = useUnsavedChanges(JSON.stringify(formData) !== JSON.stringify(initialFormData));
 
   // Search patients for typeahead
   const { data: patientsData } = useQuery({
@@ -109,11 +121,7 @@ export default function VisitForm() {
   };
 
   const handleCancel = () => {
-    if (formData.patientId) {
-      navigate(returnTo);
-    } else {
-      navigate(returnTo);
-    }
+    requestNavigation(() => navigate(returnTo));
   };
 
   return (
@@ -122,6 +130,8 @@ export default function VisitForm() {
         <PageHeader
           title={t('visits.newVisit')}
           breadcrumbs={[{ label: t('sidebar.visits'), href: returnTo }, { label: t('visits.newVisit') }]}
+          backTo={returnTo}
+          onBack={() => requestNavigation(() => navigate(returnTo))}
           actions={<button onClick={handleCancel} className="btn-primary px-4 py-2">{t('common.cancel')}</button>}
         />
 
@@ -146,6 +156,7 @@ export default function VisitForm() {
                   setPatientSearch(e.target.value);
                   setShowPatientDropdown(true);
                 }}
+                onBlur={validateForm}
                 onFocus={() => setShowPatientDropdown(true)}
                 placeholder="ابحث بالاسم أو الرقم المدني أو الهاتف..."
                 className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844] ${
@@ -185,6 +196,7 @@ export default function VisitForm() {
               <select
                 value={formData.type}
                 onChange={(e) => setFormData((prev) => ({ ...prev, type: e.target.value as 'CHECKUP' | 'FOLLOW_UP' | 'OTHER' }))}
+                onBlur={validateForm}
                 className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844] ${
                   errors.type ? 'border-red-500' : 'border-gray-300'
                 }`}
@@ -287,6 +299,16 @@ export default function VisitForm() {
             </div>
           </form>
         </div>
+        <ConfirmDialog
+          open={confirmOpen}
+          title={t('common.unsavedChangesTitle')}
+          message={t('common.unsavedChangesMessage')}
+          confirmLabel={t('common.leave')}
+          cancelLabel={t('common.stay')}
+          destructive
+          onConfirm={() => leave(() => navigate(returnTo))}
+          onCancel={stay}
+        />
       </div>
     </div>
   );

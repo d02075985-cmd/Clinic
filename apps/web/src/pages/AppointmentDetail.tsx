@@ -124,7 +124,15 @@ export default function AppointmentDetail() {
         <PageHeader
           title={t('appointments.detailsTitle')}
           breadcrumbs={[{ label: t('sidebar.appointments'), href: returnTo }, { label: t('appointments.detailsTitle') }]}
-          actions={<button onClick={() => navigate(returnTo)} className="btn-primary px-4 py-2">{t('common.back')}</button>}
+          backTo={returnTo}
+          actions={
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => navigate(`/appointments/${appointment.id}/edit?returnTo=${encodeURIComponent(returnTo)}`)} className="btn-primary px-4 py-2">
+                {t('common.edit')}
+              </button>
+              <button onClick={() => navigate(returnTo)} className="rounded-md bg-gray-200 px-4 py-2 text-gray-700">{t('common.back')}</button>
+            </div>
+          }
         />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

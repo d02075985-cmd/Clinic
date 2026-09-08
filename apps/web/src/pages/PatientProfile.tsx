@@ -13,6 +13,7 @@ import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
 import Skeleton from '../components/Skeleton';
 import MobileRecordCard, { MobileRecordField } from '../components/MobileRecordCard';
+import { formatMoney } from '../utils/money';
 
 type TabType = 'overview' | 'visits' | 'invoices' | 'payments' | 'appointments';
 
@@ -33,17 +34,17 @@ export default function PatientProfile() {
   const { data: visitsData } = useQuery({
     queryKey: ['patientVisits', id],
     queryFn: () => visitsService.getPatientVisits(id!),
-    enabled: !!id && activeTab === 'visits',
+    enabled: !!id,
   });
   const { data: invoicesData } = useQuery({
     queryKey: ['patientInvoices', id],
     queryFn: () => invoicesService.getInvoices(id!, undefined, 1, 50),
-    enabled: !!id && (activeTab === 'invoices' || activeTab === 'payments'),
+    enabled: !!id,
   });
   const { data: appointmentsData } = useQuery({
     queryKey: ['patientAppointments', id],
     queryFn: () => appointmentsService.getAppointments(undefined, undefined, id!, 1, 50),
-    enabled: !!id && activeTab === 'appointments',
+    enabled: !!id,
   });
   const { data: payments = [] } = useQuery<Payment[]>({
     queryKey: ['patientPayments', id, invoicesData?.data.map((invoice) => invoice.id)],
@@ -55,6 +56,7 @@ export default function PatientProfile() {
   });
 
   const visits = visitsData?.data || [];
+  const outstandingAmount = (invoicesData?.data || []).reduce((total, invoice) => total + Number(invoice.remaining || 0), 0);
 
   if (isLoading) {
     return (
@@ -96,6 +98,7 @@ export default function PatientProfile() {
           title={patient.fullNameAr}
           subtitle={patient.civilId}
           breadcrumbs={[{ label: t('sidebar.patients'), href: patientsListReturnTo }, { label: patient.fullNameAr }]}
+          backTo={patientsListReturnTo}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -104,7 +107,7 @@ export default function PatientProfile() {
             <div className="bg-white rounded-lg shadow-md p-6 sticky top-8">
               {/* Unpaid Balance Warning */}
               <div className="mb-4 bg-orange-50 border border-orange-200 text-orange-700 px-4 py-2 rounded text-sm">
-                {t('patients.outstandingBalance')}: 0 {t('common.currency')}
+                {t('patients.outstandingBalance')}: {formatMoney(outstandingAmount, i18n.language)} {t('common.currency')}
               </div>
 
               {/* Patient Name */}
@@ -120,7 +123,7 @@ export default function PatientProfile() {
               {patient.phone && (
                 <div className="mb-4">
                   <label className="text-sm text-gray-500 block mb-1">{t('patients.phone')}</label>
-                  <p className="text-gray-900">{patient.phone}</p>
+                  <p className="text-start text-gray-900">{patient.phone}</p>
                 </div>
               )}
 
@@ -128,7 +131,7 @@ export default function PatientProfile() {
               {patient.dateOfBirth && (
                 <div className="mb-4">
                   <label className="text-sm text-gray-500 block mb-1">{t('patients.dobLabel')}</label>
-                  <p className="text-gray-900">
+                  <p className="text-start text-gray-900">
                     {formatDate(patient.dateOfBirth, i18n.language)}
                   </p>
                 </div>
@@ -138,7 +141,7 @@ export default function PatientProfile() {
               {patient.address && (
                 <div className="mb-4">
                   <label className="text-sm text-gray-500 block mb-1">{t('patients.addressLabel')}</label>
-                  <p className="text-gray-900">{patient.address}</p>
+                  <p className="text-start text-gray-900">{patient.address}</p>
                 </div>
               )}
 
@@ -146,7 +149,7 @@ export default function PatientProfile() {
               {patient.fullNameEn && (
                 <div className="mb-6">
                   <label className="text-sm text-gray-500 block mb-1">{t('patients.nameEnLabel')}</label>
-                  <p className="text-gray-900">{patient.fullNameEn}</p>
+                  <p className="text-start text-gray-900" dir="ltr">{patient.fullNameEn}</p>
                 </div>
               )}
 
@@ -301,8 +304,8 @@ export default function PatientProfile() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('patients.invoicesHistory')}</h3>
                     {(invoicesData?.data || []).length === 0 ? <EmptyState title={t('patients.noInvoicesRecorded')} /> : (
                       <div className="space-y-2">{invoicesData?.data.map((invoice) => (
-                        <button key={invoice.id} onClick={() => navigate(preserveListState(`/invoices/${invoice.id}`, { pathname: `/patients/${patient.id}`, search: '' }))} className="flex w-full flex-col gap-1 rounded bg-gray-50 p-3 text-right hover:bg-gray-100 sm:flex-row sm:items-center sm:justify-between">
-                          <span className="font-medium">{invoice.invoiceNumber}</span><span>{formatDate(invoice.createdAt, i18n.language)} · {invoice.total} {t('common.currency')}</span>
+                        <button key={invoice.id} onClick={() => navigate(preserveListState(`/invoices/${invoice.id}`, { pathname: `/patients/${patient.id}`, search: '' }))} className="flex w-full flex-col gap-1 rounded bg-gray-50 p-3 text-start hover:bg-gray-100 sm:flex-row sm:items-center sm:justify-between">
+                          <span className="font-medium">{invoice.invoiceNumber}</span><span>{formatDate(invoice.createdAt, i18n.language)} · {formatMoney(invoice.total, i18n.language)} {t('common.currency')}</span>
                         </button>
                       ))}</div>
                     )}
@@ -314,8 +317,8 @@ export default function PatientProfile() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('patients.paymentsHistory')}</h3>
                     {payments.length === 0 ? <EmptyState title={t('patients.noPaymentsRecorded')} /> : (
                       <div className="space-y-2">{payments.map((payment) => (
-                        <button key={payment.id} onClick={() => navigate(preserveListState(`/invoices/${payment.invoiceId}`, { pathname: `/patients/${patient.id}`, search: '' }))} className="flex w-full flex-col gap-1 rounded bg-gray-50 p-3 text-right hover:bg-gray-100 sm:flex-row sm:items-center sm:justify-between">
-                          <span>{formatDate(payment.paymentDate, i18n.language)}</span><span className="font-semibold">{payment.amount} {t('common.currency')}</span>
+                        <button key={payment.id} onClick={() => navigate(preserveListState(`/invoices/${payment.invoiceId}`, { pathname: `/patients/${patient.id}`, search: '' }))} className="flex w-full flex-col gap-1 rounded bg-gray-50 p-3 text-start hover:bg-gray-100 sm:flex-row sm:items-center sm:justify-between">
+                          <span>{formatDate(payment.paymentDate, i18n.language)}</span><span className="font-semibold">{formatMoney(payment.amount, i18n.language)} {t('common.currency')}</span>
                         </button>
                       ))}</div>
                     )}
@@ -327,7 +330,7 @@ export default function PatientProfile() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('patients.appointmentsHistory')}</h3>
                     {(appointmentsData?.data || []).length === 0 ? <EmptyState title={t('patients.noAppointmentsRecorded')} /> : (
                       <div className="space-y-2">{appointmentsData?.data.map((appointment) => (
-                        <button key={appointment.id} onClick={() => navigate(preserveListState(`/appointments/${appointment.id}`, { pathname: `/patients/${patient.id}`, search: '' }))} className="w-full flex justify-between p-3 bg-gray-50 rounded hover:bg-gray-100 text-right">
+                        <button key={appointment.id} onClick={() => navigate(preserveListState(`/appointments/${appointment.id}`, { pathname: `/patients/${patient.id}`, search: '' }))} className="w-full flex justify-between p-3 bg-gray-50 rounded hover:bg-gray-100 text-start">
                           <span>{formatDateTime(appointment.scheduledAt, i18n.language)}</span><span>{appointment.status}</span>
                         </button>
                       ))}</div>

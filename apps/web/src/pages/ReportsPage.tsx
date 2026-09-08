@@ -165,7 +165,7 @@ export default function ReportsPage() {
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="revenue" name={t('reports.revenue')} stroke="#102F63" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="revenue" name={t('reports.revenue')} stroke="#16803C" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="collected" name={t('reports.collections')} stroke="#4B5694" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>

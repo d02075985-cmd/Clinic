@@ -6,7 +6,7 @@ import { invoicesService, CreateReplacementDto } from '../services/invoices.serv
 import { paymentsService, PaymentMethod } from '../services/payments.service';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '../utils/dateFormat';
-import { formatMoney, moneyToCents, normalizeMoneyInput } from '../utils/money';
+import { formatMoney, formatNumber, moneyToCents, normalizeMoneyInput } from '../utils/money';
 import { getReturnTo } from '../utils/listState';
 import { preserveListState } from '../utils/listState';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -166,6 +166,7 @@ export default function InvoiceDetail() {
         <PageHeader
           title={invoice.invoiceNumber}
           breadcrumbs={[{ label: t('sidebar.invoices'), href: returnTo }, { label: invoice.invoiceNumber }]}
+          backTo={returnTo}
           actions={<button onClick={() => navigate(returnTo)} className="btn-primary px-4 py-2">{t('common.back')}</button>}
         />
 
@@ -272,7 +273,7 @@ export default function InvoiceDetail() {
                 <div className="font-medium text-gray-900">{item.serviceNameSnapshot}</div>
                 <div className="mt-2 grid gap-2 text-sm">
                   <div className="flex justify-between"><span className="text-gray-500">{t('services.price')}</span><span>{formatMoney(item.unitPriceSnapshot, i18n.language)} {t('common.currency')}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">{t('invoices.quantity')}</span><span>{item.quantity}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">{t('invoices.quantity')}</span><span>{formatNumber(item.quantity, i18n.language)}</span></div>
                   <div className="flex justify-between font-medium"><span className="text-gray-500">{t('invoices.total')}</span><span>{formatMoney(item.lineTotal, i18n.language)} {t('common.currency')}</span></div>
                 </div>
               </div>
@@ -293,7 +294,7 @@ export default function InvoiceDetail() {
                 <tr key={item.id}>
                   <td className="px-6 py-4 text-gray-900">{item.serviceNameSnapshot}</td>
                   <td className="px-6 py-4 text-gray-700">{formatMoney(item.unitPriceSnapshot, i18n.language)} {t('common.currency')}</td>
-                  <td className="px-6 py-4 text-gray-700">{item.quantity}</td>
+                  <td className="px-6 py-4 text-gray-700">{formatNumber(item.quantity, i18n.language)}</td>
                   <td className="px-6 py-4 text-gray-900 font-medium">{formatMoney(item.lineTotal, i18n.language)} {t('common.currency')}</td>
                 </tr>
               ))}

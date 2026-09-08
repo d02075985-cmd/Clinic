@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { appointmentsService, CreateAppointmentDto } from '../services/appointments.service';
+import { appointmentsService, CreateAppointmentDto, UpdateAppointmentDto } from '../services/appointments.service';
 import { patientsService } from '../services/patients.service';
 import { useTranslation } from 'react-i18next';
 import DateInput from '../components/DateInput';
@@ -9,10 +9,14 @@ import TimeInput from '../components/TimeInput';
 import { getReturnTo } from '../utils/listState';
 import { useToast } from '../contexts/ToastContext';
 import PageHeader from '../components/PageHeader';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
 
 export default function AppointmentForm() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEdit = Boolean(id);
   const [searchParams] = useSearchParams();
   const returnTo = getReturnTo(searchParams.toString(), '/appointments');
   const { showToast } = useToast();
@@ -24,6 +28,29 @@ export default function AppointmentForm() {
   const [patientSearch, setPatientSearch] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
+  const initialFormData = useMemo(() => ({ patientId: '', scheduledAt: '', notes: '' }), []);
+
+  const { data: existingAppointment, isLoading: isLoadingAppointment } = useQuery({
+    queryKey: ['appointment', id],
+    queryFn: () => appointmentsService.getAppointment(id!),
+    enabled: isEdit,
+  });
+  const baseline = existingAppointment
+    ? { patientId: existingAppointment.patientId, scheduledAt: existingAppointment.scheduledAt.slice(0, 16), notes: existingAppointment.notes || '' }
+    : initialFormData;
+  const isDirty = JSON.stringify(formData) !== JSON.stringify(baseline);
+  const { confirmOpen, requestNavigation, stay, leave } = useUnsavedChanges(isDirty);
+
+  useEffect(() => {
+    if (!existingAppointment) return;
+    const next = {
+      patientId: existingAppointment.patientId,
+      scheduledAt: existingAppointment.scheduledAt.slice(0, 16),
+      notes: existingAppointment.notes || '',
+    };
+    setFormData(next);
+    setPatientSearch(existingAppointment.patient.fullNameAr);
+  }, [existingAppointment]);
 
   // Search patients for typeahead
   const { data: patientsData } = useQuery({
@@ -34,10 +61,11 @@ export default function AppointmentForm() {
 
   const patients = patientsData?.data || [];
 
-  const createMutation = useMutation({
-    mutationFn: (data: CreateAppointmentDto) => appointmentsService.createAppointment(data),
+  const saveMutation = useMutation({
+    mutationFn: (data: CreateAppointmentDto | UpdateAppointmentDto) =>
+      isEdit ? appointmentsService.updateAppointment(id!, data) : appointmentsService.createAppointment(data as CreateAppointmentDto),
     onSuccess: (data) => {
-      showToast({ type: 'success', message: t('feedback.appointmentCreated') });
+      showToast({ type: 'success', message: t(isEdit ? 'feedback.appointmentUpdated' : 'feedback.appointmentCreated') });
       navigate(`/appointments/${data.id}?returnTo=${encodeURIComponent(returnTo)}`);
     },
     onError: (error: Error) => {
@@ -77,7 +105,7 @@ export default function AppointmentForm() {
       return;
     }
 
-    createMutation.mutate(formData);
+    saveMutation.mutate(formData);
   };
 
   const handlePatientSelect = (patientId: string, patientName: string) => {
@@ -87,20 +115,23 @@ export default function AppointmentForm() {
   };
 
   const handleCancel = () => {
-    navigate(returnTo);
+    requestNavigation(() => navigate(returnTo));
   };
 
   return (
     <div className="min-h-screen bg-[#F6F7FA]">
       <div className="container mx-auto px-4 py-5 sm:py-8">
         <PageHeader
-          title={t('appointments.newAppointment')}
-          breadcrumbs={[{ label: t('sidebar.appointments'), href: returnTo }, { label: t('appointments.newAppointment') }]}
+          title={t(isEdit ? 'appointments.editAppointment' : 'appointments.newAppointment')}
+          breadcrumbs={[{ label: t('sidebar.appointments'), href: returnTo }, { label: t(isEdit ? 'appointments.editAppointment' : 'appointments.newAppointment') }]}
+          backTo={returnTo}
+          onBack={() => requestNavigation(() => navigate(returnTo))}
           actions={<button onClick={handleCancel} className="btn-primary px-4 py-2">{t('common.cancel')}</button>}
         />
 
         {/* Form */}
         <div className="w-full max-w-2xl rounded-lg bg-white p-4 shadow-md sm:p-6">
+          {isLoadingAppointment && <p className="mb-4 text-sm text-gray-500">{t('common.loading')}</p>}
           {errors.general && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
               {errors.general}
@@ -120,6 +151,7 @@ export default function AppointmentForm() {
                   setPatientSearch(e.target.value);
                   setShowPatientDropdown(true);
                 }}
+                onBlur={validateForm}
                 onFocus={() => setShowPatientDropdown(true)}
                 placeholder={t('visits.patientSearchPlaceholder')}
                 className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844] ${errors.patientId ? 'border-red-500' : 'border-gray-300'
@@ -161,6 +193,7 @@ export default function AppointmentForm() {
                     const time = formData.scheduledAt ? formData.scheduledAt.split('T')[1] || '10:00' : '10:00';
                     setFormData((prev) => ({ ...prev, scheduledAt: `${dateStr}T${time}` }));
                   }}
+                  onBlur={validateForm}
                   className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844] ${errors.scheduledAt ? 'border-red-500' : 'border-gray-300'
                     }`}
                 />
@@ -214,15 +247,25 @@ export default function AppointmentForm() {
               </button>
               <button
                 type="submit"
-                disabled={createMutation.isPending}
+                disabled={saveMutation.isPending || isLoadingAppointment}
                 className="w-full rounded-md bg-[#111844] px-6 py-2 text-white transition-colors hover:bg-[#1a237e] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
-                {createMutation.isPending ? t('appointments.booking') : t('appointments.bookAppointment')}
+                {saveMutation.isPending ? t('common.saving') : t(isEdit ? 'common.saveChanges' : 'appointments.bookAppointment')}
               </button>
             </div>
           </form>
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        title={t('common.unsavedChangesTitle')}
+        message={t('common.unsavedChangesMessage')}
+        confirmLabel={t('common.leave')}
+        cancelLabel={t('common.stay')}
+        destructive
+        onConfirm={() => leave(() => navigate(returnTo))}
+        onCancel={stay}
+      />
     </div>
   );
 }

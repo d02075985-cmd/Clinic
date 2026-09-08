@@ -36,6 +36,14 @@ export function formatMoney(
   }).format(cents / 100);
 }
 
+export function formatNumber(value: number | string, language = 'en'): string {
+  const numericValue = typeof value === 'number' ? value : Number(normalizeMoneyInput(value));
+  if (!Number.isFinite(numericValue)) return '0';
+  return new Intl.NumberFormat(language.startsWith('ar') ? 'ar-KW' : 'en-US', {
+    maximumFractionDigits: 2,
+  }).format(numericValue);
+}
+
 export function roundDivide(numerator: number, denominator: number): number {
   if (denominator === 0) return 0;
   return Math.floor((numerator + denominator / 2) / denominator);

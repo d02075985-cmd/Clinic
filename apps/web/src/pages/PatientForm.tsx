@@ -8,6 +8,8 @@ import { getReturnTo } from '../utils/listState';
 import { useToast } from '../contexts/ToastContext';
 import PageHeader from '../components/PageHeader';
 import Skeleton from '../components/Skeleton';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
 
 interface PatientFormProps {
   patientId?: string;
@@ -35,6 +37,16 @@ export default function PatientForm({ patientId }: PatientFormProps) {
     queryFn: () => patientsService.getPatient(patientId!),
     enabled: !!patientId,
   });
+  const initialFormData = { civilId: '', fullNameAr: '', fullNameEn: '', phone: '', dateOfBirth: '', address: '' };
+  const baseline = patient ? {
+    civilId: patient.civilId,
+    fullNameAr: patient.fullNameAr,
+    fullNameEn: patient.fullNameEn || '',
+    phone: patient.phone || '',
+    dateOfBirth: patient.dateOfBirth ? patient.dateOfBirth.split('T')[0] : '',
+    address: patient.address || '',
+  } : initialFormData;
+  const { confirmOpen, requestNavigation, stay, leave } = useUnsavedChanges(JSON.stringify(formData) !== JSON.stringify(baseline));
 
   // Populate form when patient data is loaded
   useEffect(() => {
@@ -159,7 +171,9 @@ export default function PatientForm({ patientId }: PatientFormProps) {
         <PageHeader
           title={patientId ? t('patients.editPatientTitle') : t('patients.addNew')}
           breadcrumbs={[{ label: t('sidebar.patients'), href: returnTo }, { label: patientId ? t('patients.editPatientTitle') : t('patients.addNew') }]}
-          actions={<button onClick={() => navigate(returnTo)} className="btn-primary px-4 py-2">{t('common.cancel')}</button>}
+          backTo={returnTo}
+          onBack={() => requestNavigation(() => navigate(returnTo))}
+          actions={<button onClick={() => requestNavigation(() => navigate(returnTo))} className="btn-primary px-4 py-2">{t('common.cancel')}</button>}
         />
 
         {/* Form */}
@@ -180,6 +194,7 @@ export default function PatientForm({ patientId }: PatientFormProps) {
                 type="text"
                 value={formData.civilId}
                 onChange={(e) => handleChange('civilId', e.target.value)}
+                onBlur={validateForm}
                 maxLength={12}
                 className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844] ${errors.civilId ? 'border-red-500' : 'border-gray-300'
                   }`}
@@ -199,6 +214,7 @@ export default function PatientForm({ patientId }: PatientFormProps) {
                 type="text"
                 value={formData.fullNameAr}
                 onChange={(e) => handleChange('fullNameAr', e.target.value)}
+                onBlur={validateForm}
                 maxLength={255}
                 className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#111844] ${errors.fullNameAr ? 'border-red-500' : 'border-gray-300'
                   }`}
@@ -301,6 +317,16 @@ export default function PatientForm({ patientId }: PatientFormProps) {
             </div>
           </form>
         </div>
+        <ConfirmDialog
+          open={confirmOpen}
+          title={t('common.unsavedChangesTitle')}
+          message={t('common.unsavedChangesMessage')}
+          confirmLabel={t('common.leave')}
+          cancelLabel={t('common.stay')}
+          destructive
+          onConfirm={() => leave(() => navigate(returnTo))}
+          onCancel={stay}
+        />
       </div>
     </div>
   );

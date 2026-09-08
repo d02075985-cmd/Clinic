@@ -98,6 +98,14 @@ function App() {
               }
             />
             <Route
+              path="/appointments/:id/edit"
+              element={
+                <ProtectedRoute>
+                  <AppointmentForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/visits"
               element={
                 <ProtectedRoute>
