@@ -1,9 +1,10 @@
-import { IsString, IsOptional, IsDateString, MaxLength, IsNotEmpty } from 'class-validator';
+import { IsString, IsOptional, IsDateString, MaxLength, IsNotEmpty, Matches } from 'class-validator';
 
 export class CreatePatientDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(12)
+  @Matches(/^\d+$/, { message: 'civilId must contain only digits' })
   civilId: string;
 
   @IsString()

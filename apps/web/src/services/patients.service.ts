@@ -3,7 +3,7 @@ import { getAccessToken } from '../config/auth-token';
 
 export interface Patient {
   id: string;
-  civilId: string;
+  civilId: string | null;
   fullNameAr: string;
   fullNameEn?: string;
   phone?: string;
@@ -13,6 +13,9 @@ export interface Patient {
   createdAt: string;
   updatedAt: string;
   createdById?: string;
+  legacySource?: string | null;
+  legacyPatientKey?: string | null;
+  legacyReference?: string | null;
   lastVisitDate?: string | null;
   nextAppointmentDate?: string | null;
 }

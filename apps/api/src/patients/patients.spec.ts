@@ -13,6 +13,7 @@ describe('Patients Module Tests (E2E)', () => {
   let adminUserId: string;
   let receptionistUserId: string;
   let testPatientId: string;
+  let legacyPatientId: string;
   let adminAccessToken: string;
   let receptionistAccessToken: string;
 
@@ -276,6 +277,39 @@ describe('Patients Module Tests (E2E)', () => {
   });
 
   describe('Patient Update', () => {
+    it('should allow two legacy patients without Civil IDs and later assign one', async () => {
+      const first = await prisma.patient.create({
+        data: { civilId: null, fullNameAr: 'Legacy One', createdById: receptionistUserId },
+      });
+      const second = await prisma.patient.create({
+        data: { civilId: null, fullNameAr: 'Legacy Two', createdById: receptionistUserId },
+      });
+      legacyPatientId = first.id;
+
+      expect(first.civilId).toBeNull();
+      expect(second.civilId).toBeNull();
+
+      const response = await request(app.getHttpServer())
+        .patch(`/api/patients/${legacyPatientId}`)
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send({ civilId: '12345678905' })
+        .expect(200);
+
+      expect(response.body.civilId).toBe('12345678905');
+    });
+
+    it('should reject assigning a duplicate Civil ID to a legacy patient', async () => {
+      const legacyPatient = await prisma.patient.create({
+        data: { civilId: null, fullNameAr: 'Legacy Duplicate', createdById: receptionistUserId },
+      });
+
+      await request(app.getHttpServer())
+        .patch(`/api/patients/${legacyPatient.id}`)
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send({ civilId: '12345678901' })
+        .expect(409);
+    });
+
     it('should update patient as admin', async () => {
       const response = await request(app.getHttpServer())
         .patch(`/api/patients/${testPatientId}`)

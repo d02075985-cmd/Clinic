@@ -15,8 +15,8 @@ import MobileRecordCard, { MobileRecordField } from '../components/MobileRecordC
 // list view only — the full number is still shown on the patient's own
 // detail/edit page and on invoices, this is purely an on-screen privacy
 // convenience for a shared front-desk monitor.
-function maskCivilId(civilId: string): string {
-  if (!civilId || civilId.length <= 2) return civilId;
+function maskCivilId(civilId: string | null): string {
+  if (!civilId || civilId.length <= 2) return civilId || '';
   return civilId[0] + 'X'.repeat(civilId.length - 2) + civilId[civilId.length - 1];
 }
 
@@ -143,7 +143,7 @@ export default function PatientsList() {
                 }
                 onClick={() => navigate(preserveListState(`/patients/${patient.id}`, location))}
               >
-                <MobileRecordField label={t('patients.civilId')} value={<span className="font-mono">{maskCivilId(patient.civilId)}</span>} />
+                <MobileRecordField label={t('patients.civilId')} value={<span className="font-mono">{maskCivilId(patient.civilId) || t('patients.civilIdMissing')}</span>} />
                 <MobileRecordField label={t('patients.phone')} value={patient.phone || '—'} />
                 <MobileRecordField label={t('patients.lastVisit')} value={formatDate(patient.lastVisitDate, i18n.language)} />
                 <MobileRecordField label={t('patients.nextVisit')} value={formatDate(patient.nextAppointmentDate, i18n.language)} />
@@ -166,10 +166,13 @@ export default function PatientsList() {
               {patients.map((patient) => (
                 <tr key={patient.id}>
                   <td>
-                    <div className="font-medium text-[#1F2430]">{patient.fullNameAr}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-[#1F2430]">{patient.fullNameAr}</div>
+                      {patient.legacySource && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">{t('patients.legacyRecord')}</span>}
+                    </div>
                     {patient.fullNameEn && <div className="text-xs text-[#94A3B8]">{patient.fullNameEn}</div>}
                   </td>
-                  <td className="font-mono text-[#64748B]">{maskCivilId(patient.civilId)}</td>
+                  <td className="font-mono text-[#64748B]">{maskCivilId(patient.civilId) || t('patients.civilIdMissing')}</td>
                   <td className="text-[#1F2430]">{patient.phone || '—'}</td>
                   <td className="text-[#64748B]">{formatDate(patient.lastVisitDate, i18n.language)}</td>
                   <td className="text-[#64748B]">{formatDate(patient.nextAppointmentDate, i18n.language)}</td>

@@ -138,6 +138,8 @@
     "loadError": "Failed to load patient data",
     "name": "Patient Name",
     "civilId": "Civil ID",
+    "civilIdMissing": "Not provided",
+    "legacyRecord": "Legacy record",
     "phone": "Phone",
     "lastVisit": "Last Visit",
     "nextVisit": "Next Visit",

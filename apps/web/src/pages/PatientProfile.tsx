@@ -102,7 +102,7 @@ export default function PatientProfile() {
       <div className="container mx-auto px-4 py-8">
         <PageHeader
           title={patient.fullNameAr}
-          subtitle={patient.civilId}
+          subtitle={patient.civilId || t('patients.civilIdMissing')}
           breadcrumbs={[{ label: t('sidebar.patients'), href: patientsListReturnTo }, { label: patient.fullNameAr }]}
           backTo={patientsListReturnTo}
         />
@@ -118,11 +118,16 @@ export default function PatientProfile() {
 
               {/* Patient Name */}
               <h2 className="text-2xl font-bold text-[#111844] mb-4">{patient.fullNameAr}</h2>
+              {patient.legacySource && (
+                <div className="mb-4 inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-700">
+                  {t('patients.legacyRecord')}
+                </div>
+              )}
 
               {/* Civil ID - Most Dominant */}
               <div className="mb-4">
                 <label className="text-sm text-gray-500 block mb-1">{t('patients.civilId')}</label>
-                <p className="text-xl font-bold text-[#111844]">{patient.civilId}</p>
+                <p className="text-xl font-bold text-[#111844]">{patient.civilId || t('patients.civilIdMissing')}</p>
               </div>
 
               {/* Phone */}

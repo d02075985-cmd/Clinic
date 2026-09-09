@@ -138,6 +138,8 @@
     "loadError": "فشل في تحميل بيانات المرضى",
     "name": "اسم المريض",
     "civilId": "الرقم المدني",
+    "civilIdMissing": "غير متوفر",
+    "legacyRecord": "سجل قديم",
     "phone": "هاتف",
     "lastVisit": "تاريخ آخر زيارة",
     "nextVisit": "الزيارة القادمة",

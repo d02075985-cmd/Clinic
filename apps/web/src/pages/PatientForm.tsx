@@ -43,7 +43,7 @@ export default function PatientForm({ patientId }: PatientFormProps) {
   });
   const initialFormData = { civilId: '', fullNameAr: '', fullNameEn: '', phone: '', dateOfBirth: '', address: '' };
   const baseline = patient ? {
-    civilId: patient.civilId,
+    civilId: patient.civilId || '',
     fullNameAr: patient.fullNameAr,
     fullNameEn: patient.fullNameEn || '',
     phone: patient.phone || '',
@@ -56,7 +56,7 @@ export default function PatientForm({ patientId }: PatientFormProps) {
   useEffect(() => {
     if (patient) {
       setFormData({
-        civilId: patient.civilId,
+        civilId: patient.civilId || '',
         fullNameAr: patient.fullNameAr,
         fullNameEn: patient.fullNameEn || '',
         phone: patient.phone || '',
