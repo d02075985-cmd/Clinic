@@ -16,6 +16,7 @@ const aliases = {
   fullNameAr: ['fullnamear', 'full name ar', 'arabic name', 'name ar', 'arabic full name', 'اسم المريضة (عربي)'],
   fullNameEn: ['fullnameen', 'full name en', 'english name', 'name en', 'english full name', 'اسم المريضة (إنجليزي)'],
   phone: ['phone', 'mobile', 'mobile phone', 'telephone', 'رقم التليفون'],
+  legacyReference: ['old_file_no', 'old file no', 'old file number', 'legacy reference'],
   dateOfBirth: ['dateofbirth', 'date of birth', 'dob', 'birth date'],
   address: ['address'],
   name: ['name', 'service name', 'service', 'اسم الخدمة'],
@@ -108,6 +109,7 @@ function validateWorkbook(workbook, kind) {
   }));
   const records = [];
   const seen = new Map();
+  const legacyReferenceRows = new Map();
 
   worksheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1 || isMetadataRow(row)) return;
@@ -119,11 +121,12 @@ function validateWorkbook(workbook, kind) {
       const fullNameAr = readField(row, headers, 'fullNameAr');
       const fullNameEn = readField(row, headers, 'fullNameEn');
       const phone = readField(row, headers, 'phone');
+      const legacyReference = readField(row, headers, 'legacyReference');
       const dateOfBirth = readField(row, headers, 'dateOfBirth');
       const address = readField(row, headers, 'address');
 
-      if (!civilId) issue(issues, rowNumber, 'civilId', 'Civil ID is required; blank values cannot be imported');
       if (civilId.length > MAX.civilId) issue(issues, rowNumber, 'civilId', `Civil ID exceeds ${MAX.civilId} characters`);
+      if (civilId && !/^\d+$/.test(civilId)) issue(issues, rowNumber, 'civilId', 'Civil ID must contain only digits when supplied');
       if (fullNameAr.length === 0) issue(issues, rowNumber, 'fullNameAr', 'Arabic full name is required');
       if (fullNameAr.length > MAX.fullName || fullNameEn.length > MAX.fullName) {
         issue(issues, rowNumber, 'fullName', `Name exceeds ${MAX.fullName} characters`);
@@ -137,7 +140,13 @@ function validateWorkbook(workbook, kind) {
         if (previous) issue(issues, rowNumber, 'civilId', `Duplicate Civil ID; first seen on row ${previous}`);
         else seen.set(civilId, rowNumber);
       }
-      records.push({ civilId, fullNameAr, fullNameEn: fullNameEn || null, phone: phone || null, dateOfBirth: dateOfBirth || null, address: address || null });
+      if (legacyReference) {
+        const referenceKey = normalizeHeader(legacyReference);
+        const previous = legacyReferenceRows.get(referenceKey);
+        if (previous) previous.push(rowNumber);
+        else legacyReferenceRows.set(referenceKey, [rowNumber]);
+      }
+      records.push({ civilId, fullNameAr, fullNameEn: fullNameEn || null, phone: phone || null, dateOfBirth: dateOfBirth || null, address: address || null, legacyReference: legacyReference || null });
     } else {
       const name = readField(row, headers, 'name');
       const code = readField(row, headers, 'code');
@@ -158,7 +167,10 @@ function validateWorkbook(workbook, kind) {
     }
   });
 
-  return { worksheet: worksheet.name, records, issues };
+  const duplicateLegacyReferences = [...legacyReferenceRows.entries()]
+    .filter(([, rows]) => rows.length > 1)
+    .map(([reference, rows]) => ({ reference, rows }));
+  return { worksheet: worksheet.name, records, issues, duplicateLegacyReferences };
 }
 
 async function loadWorkbook(file) {
@@ -188,27 +200,41 @@ async function main() {
     kind,
     input: resolved,
     generatedAt: new Date().toISOString(),
+    civilIdPolicy: kind === 'patients'
+      ? 'Blank Civil IDs are permitted for legacy imports; supplied Civil IDs must contain only digits and remain unique.'
+      : undefined,
     rowCount: result.records.length,
     issueCount: result.issues.length,
     importable: result.issues.length === 0,
     worksheet: result.worksheet,
+    duplicateLegacyReferences: result.duplicateLegacyReferences,
     issues: result.issues,
     records: result.records,
   };
   const json = `${JSON.stringify(report, null, 2)}\n`;
   if (output) fs.writeFileSync(path.resolve(output), json, 'utf8');
   process.stdout.write(`Validated ${result.records.length} ${kind} rows from ${resolved}\n`);
+  if (kind === 'patients') {
+    process.stdout.write('Blank Civil IDs are permitted for legacy imports; supplied Civil IDs must be numeric and unique.\n');
+  }
   process.stdout.write(`Issues: ${result.issues.length}; importable: ${report.importable ? 'yes' : 'no'}\n`);
   if (result.issues.length) {
     for (const item of result.issues.slice(0, 20)) {
       process.stdout.write(`row ${item.row}, ${item.field}: ${item.message}\n`);
     }
+
     if (result.issues.length > 20) process.stdout.write(`... ${result.issues.length - 20} more issues in the report\n`);
     process.exitCode = 1;
   }
 }
 
-main().catch((error) => {
-  console.error(error.message);
-  process.exitCode = 1;
-});
+module.exports = {
+  validateWorkbook,
+};
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
+}
