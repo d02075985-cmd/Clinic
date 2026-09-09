@@ -95,12 +95,15 @@ model User {
 
 model Patient {
   id          String   @id @default(uuid()) @db.Uuid
-  civilId     String   @unique
+  civilId     String?  @unique
   fullNameAr  String
   fullNameEn  String?
   phone       String?
   dateOfBirth DateTime?
   address     String?
+  legacySource      String?
+  legacyPatientKey  String?
+  legacyReference   String?
   isArchived  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -117,6 +120,7 @@ model Patient {
   @@index([fullNameAr])
   @@index([fullNameEn])
   @@index([phone])
+  @@index([legacySource, legacyPatientKey])
 }
 
 model Appointment {
@@ -334,4 +338,3 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
 }
-

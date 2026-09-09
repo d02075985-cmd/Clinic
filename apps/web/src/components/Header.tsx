@@ -31,7 +31,8 @@ export default function Header({ onOpenSidebar }: HeaderProps) {
   const roleLabel = user?.role === 'ADMIN' ? t('roles.admin') : t('roles.receptionist');
 
   return (
-    <header className="h-[72px] bg-white border-b border-[#E2E8F0] flex items-center justify-between px-5 md:px-8 shrink-0">
+    <header className="h-[76px] shrink-0 border-b border-[#E2E8F0] bg-white px-4 sm:px-5 md:px-8">
+      <div className="flex h-full items-center justify-between">
       <div className="flex items-center gap-3">
         <button
           onClick={onOpenSidebar}
@@ -52,6 +53,7 @@ export default function Header({ onOpenSidebar }: HeaderProps) {
       <div className="flex items-center gap-4">
         <button
           onClick={toggleLanguage}
+          aria-label={t('sidebar.language')}
           className="flex items-center gap-1.5 text-[13px] font-medium text-[#173B78] border border-[#E2E8F0] hover:bg-[#F6F8FC] rounded-lg px-3 py-1.5 transition-colors"
         >
           <Languages size={16} strokeWidth={1.75} />
@@ -61,6 +63,8 @@ export default function Header({ onOpenSidebar }: HeaderProps) {
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setMenuOpen((v) => !v)}
+            aria-label={t('common.user')}
+            aria-expanded={menuOpen}
             className="flex items-center gap-2 hover:bg-[#F6F8FC] rounded-lg px-2 py-1.5 transition-colors"
           >
             <span className="w-8 h-8 rounded-full bg-[#173B78] text-white flex items-center justify-center">
@@ -74,7 +78,7 @@ export default function Header({ onOpenSidebar }: HeaderProps) {
           </button>
 
           {menuOpen && (
-            <div className="absolute left-0 mt-2 w-48 bg-white border border-[#E2E8F0] rounded-lg shadow-[var(--shadow-soft-lg)] py-1 z-50">
+            <div className="absolute z-50 mt-2 w-48 rounded-lg border border-[#E2E8F0] bg-white py-1 shadow-[var(--shadow-soft-lg)] ltr:right-0 rtl:left-0">
               <button
                 onClick={logout}
                 className="w-full flex items-center gap-2 px-4 py-2.5 text-[13px] text-[#C4362B] hover:bg-red-50 transition-colors"
@@ -86,6 +90,7 @@ export default function Header({ onOpenSidebar }: HeaderProps) {
           )}
         </div>
       </div>
+    </div>
     </header>
   );
 }

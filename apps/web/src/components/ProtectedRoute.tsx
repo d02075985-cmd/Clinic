@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import AuthenticatedLayout from './AuthenticatedLayout';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -25,5 +26,5 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
     return <Navigate to="/dashboard" replace />;
   }
 
-  return <>{children}</>;
+  return <AuthenticatedLayout>{children}</AuthenticatedLayout>;
 }

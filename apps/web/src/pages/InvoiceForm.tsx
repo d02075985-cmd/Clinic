@@ -221,14 +221,20 @@ export default function InvoiceForm() {
                       </option>
                     ))}
                   </select>
-                  <input
+                  <label className="flex w-full flex-col gap-1 text-sm text-gray-600 sm:w-20">
+                    <span>{t('invoices.quantity')}</span>
+                    <input
                     type="number"
                     min={1}
-                    value={item.quantity}
-                    onChange={(e) => updateLine(index, 'quantity', parseInt(e.target.value, 10) || 1)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#111844] sm:w-20"
-                  />
-                  <input
+                    value={item.quantity || ''}
+                    onChange={(e) => updateLine(index, 'quantity', e.target.value === '' ? 0 : parseInt(e.target.value, 10))}
+                    aria-invalid={item.quantity <= 0}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#111844]"
+                    />
+                  </label>
+                  <label className="flex w-full flex-col gap-1 text-sm text-gray-600 sm:w-24">
+                    <span>{t('services.price')}</span>
+                    <input
                     type="text"
                     inputMode="decimal"
                     min={0}
@@ -239,7 +245,8 @@ export default function InvoiceForm() {
                     placeholder={t('services.price')}
                     className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#111844] disabled:cursor-not-allowed disabled:bg-gray-100 sm:w-24"
                     title={t('invoices.priceOverrideHint')}
-                  />
+                    />
+                  </label>
                   <div className="w-full pt-1 text-left text-sm text-gray-700 sm:w-24 sm:pt-2">
                     {service && item.unitPrice !== null
                       ? formatMoney(centsToMoney((moneyToCents(item.unitPrice) || 0) * item.quantity), i18n.language)
@@ -280,23 +287,32 @@ export default function InvoiceForm() {
                   <option value="FIXED">{t('invoices.chargeTypeFixed')}</option>
                   <option value="PERCENTAGE">{t('invoices.chargeTypePercentage')}</option>
                 </select>
-                <input
+                <label className="flex w-full flex-col gap-1 text-sm text-gray-600 sm:flex-1">
+                  <span>{charge.chargeType === 'PERCENTAGE' ? t('invoices.percentageCharge') : t('invoices.amount')}</span>
+                  <input
                   type="text"
                   inputMode="decimal"
                   min={0}
                   step="0.01"
                   value={charge.chargeValue}
-                  onChange={(e) => updateCharge(index, 'chargeValue', parseMoneyField(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const value = parseMoneyField(e.target.value);
+                    updateCharge(index, 'chargeValue', value === null ? 0 : Math.max(0, value));
+                  }}
                   placeholder={charge.chargeType === 'PERCENTAGE' ? t('invoices.percentagePlaceholder') : t('invoices.amountPlaceholder')}
                   className="w-full flex-1 rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#111844]"
-                />
-                <input
+                  />
+                </label>
+                <label className="flex w-full flex-col gap-1 text-sm text-gray-600 sm:flex-1">
+                  <span>{t('services.description')}</span>
+                  <input
                   type="text"
                   value={charge.description}
                   onChange={(e) => updateCharge(index, 'description', e.target.value)}
                   placeholder={t('services.description')}
                   className="w-full flex-1 rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#111844]"
-                />
+                  />
+                </label>
                 <div className="w-full pt-1 text-left text-sm text-gray-700 sm:w-24 sm:pt-2">
                   {charge.chargeType === 'PERCENTAGE'
                     ? `${formatMoney(centsToMoney(roundDivide(subtotalCents * (moneyToCents(charge.chargeValue) || 0), 10000)), i18n.language)} ${t('common.currency')}`

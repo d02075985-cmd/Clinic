@@ -7,7 +7,7 @@ DECLARE max_num BIGINT;
 BEGIN
   SELECT COALESCE(MAX(CAST(SUBSTRING("invoiceNumber", 5) AS BIGINT)), 0) INTO max_num
   FROM "Invoice"
-  WHERE "invoiceNumber" LIKE 'INV-%';
+  WHERE "invoiceNumber" ~ '^INV-[0-9]+$';
 
   IF max_num > 0 THEN
     PERFORM setval('invoice_number_seq', max_num);

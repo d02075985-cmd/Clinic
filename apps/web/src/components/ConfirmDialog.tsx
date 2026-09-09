@@ -25,15 +25,35 @@ export default function ConfirmDialog({
 }: ConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<globalThis.HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) return undefined;
+    previouslyFocusedRef.current = document.activeElement as globalThis.HTMLElement | null;
     (destructive ? cancelRef.current : confirmRef.current)?.focus();
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === 'Escape' && !loading) onCancel();
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const focusable = Array.from(dialogRef.current.querySelectorAll<globalThis.HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), select:not([disabled])',
+      ));
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      previouslyFocusedRef.current?.focus();
+    };
   }, [open, destructive, loading, onCancel]);
 
   if (!open) return null;
@@ -52,6 +72,7 @@ export default function ConfirmDialog({
         aria-labelledby="confirm-dialog-title"
         aria-describedby="confirm-dialog-message"
         className="ui-card w-full max-w-sm p-6"
+        ref={dialogRef}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <h2 id="confirm-dialog-title" className={`mb-2 font-bold ${destructive ? 'text-[#C4362B]' : 'text-[#102F63]'}`}>
